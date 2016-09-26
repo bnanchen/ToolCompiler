@@ -13,36 +13,136 @@ class Evaluator(ctx: Context, prog: Program) {
   }
 
   def evalStatement(stmt: StatTree)(implicit ectx: EvaluationContext): Unit = stmt match {
-    case Block(stats) => ???
-    case If(expr, thn, els) => ???
-    case While(expr, stat) => ???
-    case Println(expr) => ???
-    case Assign(id, expr) => ???
-    case ArrayAssign(id, index, expr) => ???
-    case DoExpr(expr) => ???
+    case Block(stats) => {
+      stats.foreach { s => evalStatement(s) } // juste?
+    }
+    case If(expr, thn, els) => {
+      if(evalExpr(expr).asBool) {
+        evalStatement(thn)
+      } else {
+        els match {
+          case None => None
+          case Some(e) => evalStatement(e)
+        }
+      }
+    }
+    case While(expr, stat) => {
+      while(evalExpr(expr).asBool) {
+        evalStatement(stat)
+      }
+    }
+    case Println(expr) => {
+      val e = evalExpr(expr)
+      e match {
+        case IntValue(v) => println(v)
+        case BoolValue(v) => println(v)
+        case StringValue(v) => println(v)
+        case _ => fatal("Not accepted by println")
+      }
+    }
+    case Assign(id, expr) => {
+      ectx.setVariable(id.toString, evalExpr(expr))
+    }
+    case ArrayAssign(id, index, expr) => {
+      ectx.getVariable(id.toString).asArray.setIndex(evalExpr(index).asInt, evalExpr(expr).asInt)
+    }
+    case DoExpr(expr) => {
+      evalExpr(expr)
+    }
   }
 
   def evalExpr(e: ExprTree)(implicit ectx: EvaluationContext): Value = e match {
     case IntLit(value) => IntValue(value)
-    case StringLit(value) => ???
-    case True() => ???
-    case False() => ???
-    case And(lhs, rhs) => ???
-    case Or(lhs, rhs)  => ???
-    case Plus(lhs, rhs) => ???
-    case Minus(lhs, rhs) => ???
-    case Times(lhs, rhs) => ???
-    case Div(lhs, rhs) => ???
-    case LessThan(lhs, rhs) => ???
-    case Not(expr) => ???
-    case Equals(lhs, rhs) => ???
-    case ArrayRead(arr, index) => ???
-    case ArrayLength(arr) => ???
-    case MethodCall(obj, meth, args) => ???
-    case Variable(Identifier(name)) => ???
-    case New(tpe) => ???
-    case This() => ???
-    case NewIntArray(size) => ???
+    case StringLit(value) => StringValue(value)
+    case True() => BoolValue(true)
+    case False() => BoolValue(false)
+    case And(lhs, rhs) => BoolValue(evalExpr(lhs).asBool && evalExpr(rhs).asBool)
+    case Or(lhs, rhs)  => BoolValue(evalExpr(lhs).asBool || evalExpr(rhs).asBool)
+    case Plus(lhs, rhs) => {
+      val l = evalExpr(lhs)
+      val r = evalExpr(rhs)
+      (l,r) match {
+        case (StringValue(v1), StringValue(v2)) => StringValue(v1 + v2)
+        case (StringValue(v1), IntValue(v2)) => StringValue(v1 + v2.toString)
+        case (IntValue(v1), StringValue(v2)) => StringValue(v1.toString + v2)
+        case (IntValue(v1), IntValue(v2)) => IntValue(v1 + v2)
+        case _ => fatal("Not accepted addition")
+      }
+    }
+    case Minus(lhs, rhs) => {
+      val l = evalExpr(lhs)
+      val r = evalExpr(rhs)
+      (l, r) match {
+        case (IntValue(v1), IntValue(v2)) => IntValue(v1 - v2)
+        case _ => fatal("Not accepted soustraction")
+      }
+    }
+    case Times(lhs, rhs) => {
+      val l = evalExpr(lhs)
+      val r = evalExpr(rhs)
+      (l, r) match {
+        case (IntValue(v1), IntValue(v2)) => IntValue(v1 * v2)
+        case _ => fatal("Not accepted multiplication")
+      }
+    }
+    case Div(lhs, rhs) => {
+      val l = evalExpr(lhs)
+      val r = evalExpr(rhs)
+      (l, r) match {
+        case (IntValue(v1), IntValue(v2)) => IntValue(v1 / v2)
+        case _ => fatal("Not accepted division")
+      }
+    }
+    case LessThan(lhs, rhs) => {
+      val l = evalExpr(lhs)
+      val r = evalExpr(rhs)
+      (l, r) match {
+        case (IntValue(v1), IntValue(v2)) => BoolValue(v1 < v2)
+        case _ => fatal("Not accepted for less than")
+      }
+    }
+    case Not(expr) => {
+      BoolValue(!evalExpr(expr).asBool)
+    }
+    case Equals(lhs, rhs) => {
+      val l = evalExpr(lhs)
+      val r = evalExpr(rhs)
+      (l, r) match {
+        case (IntValue(v1), IntValue(v2)) => BoolValue(v1 == v2)
+        case (BoolValue(v1), BoolValue(v2)) => BoolValue(v1 == v2)
+        case (_: ArrayValue, _: ArrayValue) => BoolValue(l eq r) // eq utilisé par comparé 2 tableaux
+        case (StringValue(v1), StringValue(v2)) => BoolValue(v1 eq v2)
+        case (ObjectValue(v1), ObjectValue(v2)) => BoolValue(v1 eq v2)
+        case _ => fatal("Not accepted for equals: type error")
+      }
+    }
+    case ArrayRead(arr, index) => {
+      val i = evalExpr(index).asInt
+      IntValue(evalExpr(arr).asArray.getIndex(i))
+    }
+    case ArrayLength(arr) => {
+      evalExpr(arr).asArray match {
+        case ArrayValue(a) => IntValue(a.length)
+        case _ => fatal("Not accepted for array length")
+      }
+    }
+    case MethodCall(obj, meth, args) => {
+       val method = findMethod(evalExpr(obj).asObject.cd, meth.toString()) // obtenu la méthode
+       // Problème! findclass, créer un propre contexte
+       ???
+    }
+    case Variable(Identifier(name)) => {
+      ectx.getVariable(name)
+    }
+    case New(tpe) => {
+      ObjectValue(findClass(tpe.toString)) // juste?
+    }
+    case This() => {
+      ectx.getVariable(this.toString)
+    }
+    case NewIntArray(size) => {
+      ArrayValue(new Array[Int](evalExpr(size).asInt))
+    }
   }
 
   abstract class EvaluationContext {
