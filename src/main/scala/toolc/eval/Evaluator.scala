@@ -128,17 +128,19 @@ class Evaluator(ctx: Context, prog: Program) {
     }
     case MethodCall(obj, meth, args) => {
        val method = findMethod(evalExpr(obj).asObject.cd, meth.toString()) // obtenu la méthode
-       // Problème! findclass, créer un propre contexte
-       ???
+       // Problème! findclass, créer un propre contexte!
+       val listArg = args.foreach{ar => evalExpr(ar)}
+       val ob = evalExpr(obj).asObject
+       
     }
     case Variable(Identifier(name)) => {
       ectx.getVariable(name)
     }
     case New(tpe) => {
-      ObjectValue(findClass(tpe.toString)) // juste?
+      ObjectValue(findClass(tpe.toString)) 
     }
     case This() => {
-      ectx.getVariable(this.toString)
+      ectx.getVariable(this.toString) // par test sur sbt, ne devrait pas fonctionner
     }
     case NewIntArray(size) => {
       ArrayValue(new Array[Int](evalExpr(size).asInt))
