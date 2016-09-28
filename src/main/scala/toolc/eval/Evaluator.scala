@@ -41,13 +41,13 @@ class Evaluator(ctx: Context, prog: Program) {
       }
     }
     case Assign(id, expr) => {
-      ectx.setVariable(id.toString, evalExpr(expr))
+      ectx.setVariable(id.value, evalExpr(expr))
     }
     case ArrayAssign(id, index, expr) => {
-      ectx.getVariable(id.toString).asArray.setIndex(evalExpr(index).asInt, evalExpr(expr).asInt)
+      ectx.getVariable(id.value).asArray.setIndex(evalExpr(index).asInt, evalExpr(expr).asInt)
     }
     case DoExpr(expr) => {
-      evalExpr(expr)
+      val exp = evalExpr(expr)
     }
   }
 
@@ -126,21 +126,51 @@ class Evaluator(ctx: Context, prog: Program) {
         case _ => fatal("Not accepted for array length")
       }
     }
+       // creer context, evaluer la méthode: 1. évaluer arguments tu dois les
+       // assigner MethodDecl set variable avec MethodDecl. 2. évaluer la méthode: 
     case MethodCall(obj, meth, args) => {
-       val method = findMethod(evalExpr(obj).asObject.cd, meth.toString()) // obtenu la méthode
-       // Problème! findclass, créer un propre contexte!
-       val listArg = args.foreach{ar => evalExpr(ar)}
+       val method = findMethod(evalExpr(obj).asObject.cd, meth.value) // obtenu la méthode, type: MethodDecl
        val ob = evalExpr(obj).asObject
-       
+       val ctx = new MethodContext(ob) // création d'un context
+       var i = 0
+       while (i < args.length) {
+         val e = evalExpr(args(i))
+         ctx.declareVariable(method.args(i).id.value)
+         ctx.setVariable(method.args(i).id.value, e)  
+         i += 1
+       }
+       i = 0
+       while (i < method.vars.length) {
+         ctx.declareVariable(method.vars(i).id.value)
+         i += 1
+       }
+       //method.stats foreach(v => evalStatement(v)(ctx))
+       i = 0
+       while (i < method.stats.length) {
+         evalStatement(method.stats(i))(ctx)
+         i += 1
+       }
+       evalExpr(method.retExpr)(ctx) // ?? 20th century women
     }
     case Variable(Identifier(name)) => {
       ectx.getVariable(name)
     }
     case New(tpe) => {
-      ObjectValue(findClass(tpe.toString)) 
+      val a = findClass(tpe.value)
+      val ob = ObjectValue(a)
+      var i = 0
+      while(i < a.vars.length) {
+        ob.declareField((a.vars(i).id.value))
+        i += 1 
+      }
+      ob
+      
     }
     case This() => {
-      ectx.getVariable(this.toString) // par test sur sbt, ne devrait pas fonctionner
+      ectx match {
+        case ectx: MethodContext => ectx.obj
+        case ectx: MainContext => fatal("dans le MainContext")
+      }
     }
     case NewIntArray(size) => {
       ArrayValue(new Array[Int](evalExpr(size).asInt))
