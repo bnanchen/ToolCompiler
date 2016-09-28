@@ -144,12 +144,12 @@ class Evaluator(ctx: Context, prog: Program) {
          ctx.declareVariable(method.vars(i).id.value)
          i += 1
        }
-       //method.stats foreach(v => evalStatement(v)(ctx))
-       i = 0
+       method.stats foreach(v => evalStatement(v)(ctx))
+       /*i = 0
        while (i < method.stats.length) {
          evalStatement(method.stats(i))(ctx)
          i += 1
-       }
+       }*/
        evalExpr(method.retExpr)(ctx) // ?? 20th century women
     }
     case Variable(Identifier(name)) => {
