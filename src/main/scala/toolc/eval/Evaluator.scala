@@ -41,9 +41,11 @@ class Evaluator(ctx: Context, prog: Program) {
       }
     }
     case Assign(id, expr) => {
+      println("Assign(id, expr)")
       ectx.setVariable(id.value, evalExpr(expr))
     }
     case ArrayAssign(id, index, expr) => {
+      println("ArrayAssign(id, index, expr")
       ectx.getVariable(id.value).asArray.setIndex(evalExpr(index).asInt, evalExpr(expr).asInt)
     }
     case DoExpr(expr) => {
@@ -126,8 +128,7 @@ class Evaluator(ctx: Context, prog: Program) {
         case _ => fatal("Not accepted for array length")
       }
     }
-       // creer context, evaluer la méthode: 1. évaluer arguments tu dois les
-       // assigner MethodDecl set variable avec MethodDecl. 2. évaluer la méthode: 
+        
     case MethodCall(obj, meth, args) => {
        val method = findMethod(evalExpr(obj).asObject.cd, meth.value) // obtenu la méthode, type: MethodDecl
        val ob = evalExpr(obj).asObject
@@ -135,24 +136,25 @@ class Evaluator(ctx: Context, prog: Program) {
        var i = 0
        while (i < args.length) {
          val e = evalExpr(args(i))
-         ctx.declareVariable(method.args(i).id.value)
+         ctx.declareVariable(method.args(i).id.value) // ajout des arguments au context
+         println("MethodCall(obj, meth, args)")
          ctx.setVariable(method.args(i).id.value, e)  
          i += 1
        }
        i = 0
        while (i < method.vars.length) {
-         ctx.declareVariable(method.vars(i).id.value)
+         ctx.declareVariable(method.vars(i).id.value) // ajout des fields de l'objet au context
          i += 1
        }
-       method.stats foreach(v => evalStatement(v)(ctx))
-       /*i = 0
+       i = 0
        while (i < method.stats.length) {
          evalStatement(method.stats(i))(ctx)
          i += 1
-       }*/
-       evalExpr(method.retExpr)(ctx) // ?? 20th century women
+       }
+       evalExpr(method.retExpr)(ctx) 
     }
     case Variable(Identifier(name)) => {
+      println("Variable(Identifier(name))")
       ectx.getVariable(name)
     }
     case New(tpe) => {
