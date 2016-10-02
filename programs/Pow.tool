@@ -5,7 +5,7 @@ program Pow {
 class Power {
   def pow(x: Int, n: Int): Int = {
     var sum: Int;
-    var bool: Boolean;
+    var bool: Bool;
     sum = 1;
     bool = true;
     while (bool) {
