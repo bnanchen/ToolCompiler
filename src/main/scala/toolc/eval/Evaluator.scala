@@ -41,11 +41,9 @@ class Evaluator(ctx: Context, prog: Program) {
       }
     }
     case Assign(id, expr) => {
-      println("Assign(id, expr)")
       ectx.setVariable(id.value, evalExpr(expr))
     }
     case ArrayAssign(id, index, expr) => {
-      println("ArrayAssign(id, index, expr")
       ectx.getVariable(id.value).asArray.setIndex(evalExpr(index).asInt, evalExpr(expr).asInt)
     }
     case DoExpr(expr) => {
@@ -137,7 +135,6 @@ class Evaluator(ctx: Context, prog: Program) {
        while (i < args.length) {
          val e = evalExpr(args(i))
          ctx.declareVariable(method.args(i).id.value) // ajout des arguments au context
-         println("MethodCall(obj, meth, args)")
          ctx.setVariable(method.args(i).id.value, e)  
          i += 1
        }
@@ -154,7 +151,6 @@ class Evaluator(ctx: Context, prog: Program) {
        evalExpr(method.retExpr)(ctx) 
     }
     case Variable(Identifier(name)) => {
-      println("Variable(Identifier(name))")
       ectx.getVariable(name)
     }
     case New(tpe) => {
