@@ -14,7 +14,7 @@ class Evaluator(ctx: Context, prog: Program) {
 
   def evalStatement(stmt: StatTree)(implicit ectx: EvaluationContext): Unit = stmt match {
     case Block(stats) => {
-      stats.foreach { s => evalStatement(s) } // juste?
+      stats.foreach { s => evalStatement(s) }
     }
     case If(expr, thn, els) => {
       if(evalExpr(expr).asBool) {
