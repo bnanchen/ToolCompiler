@@ -156,7 +156,7 @@ class Evaluator(ctx: Context, prog: Program) {
     case New(tpe) => {
       val a = findClass(tpe.value) // ClassDecl
       val ob = ObjectValue(a)
-      val listFields = fieldsOfClass(a)
+      val listFields = fieldsOfClass(a).toList
       var i = 0
       while(i < listFields.length) {
         ob.declareField(listFields(i))
