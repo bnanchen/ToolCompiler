@@ -126,7 +126,7 @@ class Evaluator(ctx: Context, prog: Program) {
         case _ => fatal("Not accepted for array length")
       }
     }
-
+        
     case MethodCall(obj, meth, args) => {
        val method = findMethod(evalExpr(obj).asObject.cd, meth.value) // obtenu la méthode, type: MethodDecl
        val ob = evalExpr(obj).asObject
@@ -135,7 +135,7 @@ class Evaluator(ctx: Context, prog: Program) {
        while (i < args.length) {
          val e = evalExpr(args(i))
          ctx.declareVariable(method.args(i).id.value) // ajout des arguments au context
-         ctx.setVariable(method.args(i).id.value, e)
+         ctx.setVariable(method.args(i).id.value, e)  
          i += 1
        }
        i = 0
@@ -148,7 +148,7 @@ class Evaluator(ctx: Context, prog: Program) {
          evalStatement(method.stats(i))(ctx)
          i += 1
        }
-       evalExpr(method.retExpr)(ctx)
+       evalExpr(method.retExpr)(ctx) 
     }
     case Variable(Identifier(name)) => {
       ectx.getVariable(name)
@@ -163,7 +163,7 @@ class Evaluator(ctx: Context, prog: Program) {
         i += 1
       }
       ob
-
+      
     }
     case This() => {
       ectx match {
