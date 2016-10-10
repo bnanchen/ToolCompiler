@@ -124,9 +124,14 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
       } else if (currentChar == '/' && nextChar == '*') {
         // TODO handle multiline comments. Remember to fail for unclosed comments!
         consume(2)
-        while(currentChar != '*' && nextChar != '/' && currentChar != EndOfFile) {
+        while(currentChar != '*' && nextChar != '/'/* && currentChar != EndOfFile*/) {
+          if (currentChar == EndOfFile) {
+            ctx.reporter.error("Comments were not closed.", currentPos)
+            return BAD()
+          }
           consume()
         }
+        consume(2) // pas sûr sûr !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         nextToken()
       } else {
         readToken()
@@ -169,8 +174,12 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
         var bool: Boolean = true
         while(currentChar != '"') { // est-ce que le toChar change qqch? Non
           if (currentChar != '1' && currentChar != '2' && currentChar != '3' && currentChar != '4' && currentChar != '5' && currentChar != '6' 
-              && currentChar != '7' && currentChar != '8' && currentChar != '9' && currentChar != '0') {
+              && currentChar != '7' && currentChar != '8' && currentChar != '9' && currentChar != '0') { // sert à rien, j'avais mal compris le INTLIT
             bool = false
+          }
+          if (currentChar == EndOfFile) {
+            ctx.reporter.error("String lit. not closed.", tokenPos)
+            return BAD()
           }
           consume() // il reste dans la boucle
           w = w + currentChar
@@ -213,7 +222,7 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
         
         def maybeW(word: String): Token = {
           //consume(2)
-          if (Character.isWhitespace(currentChar) || currentChar == ')' || currentChar == ';' || currentChar == '=') {
+          if (Character.isWhitespace(currentChar) || currentChar == ')' || currentChar == ';' || currentChar == '=' || currentChar == '[') {
             val token = keywords(word).getOrElse(BAD())
             token.setPos(tokenPos)
             token
@@ -228,27 +237,22 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
             val token = keywords(word).getOrElse(BAD())
             token.setPos(tokenPos)
             token
-          } else if (currentChar == '.' || Character.isWhitespace(currentChar) || currentChar == ';') { // pour this
-            val token = THIS()
+          } else if (currentChar == '.' || Character.isWhitespace(currentChar) || currentChar == ';') { // pour this et Bool
+            val token = keywords(word).getOrElse(BAD())
             token.setPos(tokenPos)
             token
           } else if (Character.isWhitespace(currentChar) || currentChar == ')' || currentChar == ';') { // pour true
             val token = TRUE()
             token.setPos(tokenPos)
             token
-          } else if (Character.isWhitespace(currentChar) || currentChar == ';') {
-            val token = BOOLEAN()
-            token.setPos(tokenPos)
-            token
-          }
-          else {
+          } else {
             accID(word,4)
           }
         }
         
         def maybeL(word: String): Token = {
           //consume(2)
-          if (Character.isWhitespace(currentChar)) {
+          if (Character.isWhitespace(currentChar) || currentChar == '(') {
             val token = keywords(word).getOrElse(BAD())
             token.setPos(tokenPos)
             token
@@ -312,18 +316,18 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
           // remplacé tous les nextChar par currentChar dans le if:
           if (Character.isWhitespace(currentChar) || currentChar == ':' || currentChar == ';' || currentChar == ',' || currentChar == '!' || currentChar == '(' || currentChar == ')' || currentChar == '['
           || currentChar == ']' || currentChar == '{' || currentChar == '}' || currentChar == '*' || currentChar == '/' || currentChar == '+' || currentChar == '-' 
-          || currentChar == '<' || currentChar == '&' || currentChar == '|' || currentChar == '"') {
+          || currentChar == '<' || currentChar == '&' || currentChar == '|' || currentChar == '"' || currentChar == '.') {
             //consume()
-            var bool = true
+            var numbers = true
             var i = l-1
-            while (i >= 0 && bool == true) {
-              if (word(i) == '1' || word(i) == '2' || word(i) == '3' || word(i) == '4' || word(i) == '5' || word(i) == '6' 
-              || word(i) == '7' || word(i) == '8' || word(i) == '9' || word(i) == '0') {
-            bool = false
+            while (i >= 0 && numbers == true) { 
+              if (word(i) != '1' || word(i) != '2' || word(i) != '3' || word(i) != '4' || word(i) != '5' || word(i) != '6' 
+              || word(i) != '7' || word(i) != '8' || word(i) != '9' || word(i) != '0') {
+            numbers = false
           }
               i -= 1
-            }
-            if (bool) {
+            } 
+            if (!numbers) {
               accID(word, 0)
             } else {
               val token = INTLIT(word.toInt)
@@ -336,7 +340,24 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
           }
         }
         
+        def number(word: String): Token = {
+          var w = word
+          consume()
+          while (currentChar == '1' || currentChar == '2' || currentChar == '3' || currentChar == '4' || currentChar == '5' || currentChar == '6' 
+              || currentChar == '7' || currentChar == '8' || currentChar == '9' || currentChar == '0') {
+            w = w + currentChar
+            consume
+          }
+          val token = INTLIT(w.toInt)
+          token.setPos(tokenPos)
+          return token
+        }
         
+        if (currentChar == '1' || currentChar == '2' || currentChar == '3' || currentChar == '4' || currentChar == '5' || currentChar == '6' 
+              || currentChar == '7' || currentChar == '8' || currentChar == '9' || currentChar == '0') {
+          val token = number(word)
+          return token
+        }
         if (Character.isWhitespace(nextChar) || nextChar == ':' || nextChar == ';' || nextChar == ',' || nextChar == '!' || nextChar == '(' || nextChar == ')' || nextChar == '['
           || nextChar == ']' || nextChar == '{' || nextChar == '}' || nextChar == '*' || nextChar == '/' || nextChar == '+' || nextChar == '-' 
           || nextChar == '<' || nextChar == '&' || nextChar == '|' || nextChar == '"') {
@@ -407,6 +428,7 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
         val token3 = word match {
           case "class" => maybeL(word)
           case "false" => maybeL(word) 
+          case "while" => maybeL(word)
           case _ => inter(word, 5)
         }
         if (token3 != BAD()) {
