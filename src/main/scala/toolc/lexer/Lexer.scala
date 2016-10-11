@@ -182,12 +182,7 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
           return token
         }
         var w: String = currentChar.toString()
-        var bool: Boolean = true
         while(currentChar != '"') { 
-          if (currentChar != '1' && currentChar != '2' && currentChar != '3' && currentChar != '4' && currentChar != '5' && currentChar != '6' 
-              && currentChar != '7' && currentChar != '8' && currentChar != '9' && currentChar != '0') { // sert à rien, j'avais mal compris le INTLIT
-            bool = false
-          }
           if (currentChar == EndOfFile || currentChar == '\r' || currentChar == '\n') { 
             ctx.reporter.error("String literal not well written.", tokenPos)
             val token = BAD()
@@ -198,15 +193,9 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
           w = w + currentChar
         }
         consume()
-        if (bool == true) {
-          val token = INTLIT(w.slice(0, w.length - 1).toInt)
-          token.setPos(tokenPos)
-        return token
-        } else {
           val token = STRINGLIT(w.slice(0, w.length - 1))
           token.setPos(tokenPos)
         return token
-        }
        } else if (currentChar == '&' || currentChar == '|') {
         word = word + nextChar
         if (currentChar == nextChar) {
