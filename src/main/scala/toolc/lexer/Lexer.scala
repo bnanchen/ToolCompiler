@@ -333,7 +333,6 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
             
           } else {
           var w = word
-          println(w)
           //consume()
           while (!(Character.isWhitespace(currentChar)) && currentChar != ':' && currentChar != ';' && currentChar != ',' && currentChar != '!' && currentChar != '(' && currentChar != ')' && currentChar != '['
           && currentChar != ']' && currentChar != '{' && currentChar != '}' && currentChar != '*' && currentChar != '/' && currentChar != '+' && currentChar != '-' 
@@ -356,7 +355,6 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
           } else {
             val token = ID(w)
             token.setPos(tokenPos)
-            println("TOKEN "+ w)
             token
           }
           }
