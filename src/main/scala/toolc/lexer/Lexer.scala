@@ -124,10 +124,12 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
       } else if (currentChar == '/' && nextChar == '*') {
         // TODO handle multiline comments. Remember to fail for unclosed comments!
         consume(2)
-        while(currentChar != '*' && nextChar != '/'/* && currentChar != EndOfFile*/) {
+        while(!(currentChar == '*' && nextChar == '/')/* && currentChar != EndOfFile*/) {
           if (currentChar == EndOfFile) {
             ctx.reporter.error("Comments were not closed.", currentPos)
-            return BAD()
+            val token = BAD()
+            token.setPos(currentPos)
+            return token
           }
           consume() 
         }
@@ -155,7 +157,9 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
           val token = keywords(word).getOrElse(BAD())
           if (token == BAD()) {
             ctx.reporter.error("There is an error.")
-            return BAD()
+            val token = BAD()
+            token.setPos(tokenPos)
+            return token
           } else {
             token.setPos(tokenPos)
           return token
@@ -191,7 +195,9 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
           }
           if (currentChar == EndOfFile || currentChar == '\r' || currentChar == '\n') { // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ctx.reporter.error("String literal not well written.", tokenPos)
-            return BAD()
+            val token = BAD()
+            token.setPos(tokenPos)
+            return token
           }
           consume() // il reste dans la boucle
           w = w + currentChar
@@ -216,7 +222,9 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
         val token = keywords(word).getOrElse(BAD())
         if (token == BAD()) {
           ctx.reporter.error("There is an error.")
-          return BAD()
+          val token = BAD()
+            token.setPos(tokenPos)
+            return token
         } else {
           token.setPos(tokenPos)
           return token
@@ -259,7 +267,7 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
             val token = keywords(word).getOrElse(BAD())
             token.setPos(tokenPos)
             token
-          } else if (currentChar == '.' || Character.isWhitespace(currentChar) || currentChar == ';' || currentChar == ')' || currentChar == ',') { // pour this et Bool et true
+          } else if (currentChar == '.' || Character.isWhitespace(currentChar) || currentChar == ';' || currentChar == ')' || currentChar == ',' || currentChar == '=') { // pour this et Bool et true
             val token = keywords(word).getOrElse(BAD())
             token.setPos(tokenPos)
             token
@@ -285,7 +293,7 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
         
         def maybeF(word: String): Token = {
           //consume(2)
-          if (Character.isWhitespace(currentChar) || currentChar == ')' || currentChar == ';' || currentChar == ',' || currentChar == '}' || currentChar == ']' || currentChar == '*') {
+          if (Character.isWhitespace(currentChar) || currentChar == ')' || currentChar == ';' || currentChar == ',' || currentChar == '}' || currentChar == ']' || currentChar == '*' || currentChar == '+' || currentChar == '-') {
             val token = keywords(word).getOrElse(BAD())
             token.setPos(tokenPos)
             token
@@ -316,16 +324,23 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
             var i = 0
           var bool = false
           while (i < w.length && bool == false) { // contrôle s'il n'y a pas un caractère invalide (pas sûr sûr pour * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!)
-            if (w(i) == '@' || w(i) == '$' /*|| w(i) == '\'*/ || w(i) == '%' || w(i) == '&' || w(i) == '~' || w(i) == '#' || w(i) == '*' || w(i) == '>' || w(i) == '?') {
+            if (w(i) == '@' || w(i) == '$' /*|| w(i) == '\'*/ || w(i) == '%' || w(i) == '&' || w(i) == '~' || w(i) == '#' || w(i) == '*' || w(i) == '>' || w(i) == '?' || w(i) == ''' || w(i) == '^') {
               bool = true
               
           }
             i += 1
           }
             if (bool) {
-              ctx.reporter.error("There is an error: invalid character for an ID.")
-              return BAD()
-            } else {
+              ctx.reporter.error("Invalid character for an ID.")
+              val token = BAD()
+            token.setPos(tokenPos)
+            return token
+            } else if (w(0) == '_') {
+            ctx.reporter.error("ID beginning not with a letter.")
+            val token = BAD()
+            token.setPos(tokenPos)
+            return token
+          } else {
               val token = ID(word)
             token.setPos(tokenPos)
             token
@@ -343,15 +358,23 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
           var i = 0
           var bool = false
           while (i < w.length && bool == false) { // contrôle s'il n'y a pas un caractère invalide (pas sûr sûr pour * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!)
-            if (w(i) == '@' || w(i) == '$' /*|| w(i) == '\'*/ || w(i) == '%' || w(i) == '&' || w(i) == '~' || w(i) == '#' || w(i) == '*' || w(i) == '>' || w(i) == '?') {
+            if (w(i) == '@' || w(i) == '$' /*|| w(i) == '\'*/ || w(i) == '%' || w(i) == '&' || w(i) == '~' || w(i) == '#' || w(i) == '*' || w(i) == '>' || w(i) == '?' || w(i) == ''' || w(i) == '^') {
               bool = true
               
           }
             i += 1
           }
+          
           if (bool) {
             ctx.reporter.error("There is an error: invalid character for an ID.")
-            return BAD()
+            val token = BAD()
+            token.setPos(tokenPos)
+            return token
+          } else if (w(0) == '_') {
+            ctx.reporter.error("There is an error: ID beginning not with a letter.")
+            val token = BAD()
+            token.setPos(tokenPos)
+            return token
           } else {
             val token = ID(w)
             token.setPos(tokenPos)
@@ -523,7 +546,9 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
           return token5
         } else {
           ctx.reporter.error("There is an error.")
-          return BAD()
+          val token = BAD()
+            token.setPos(tokenPos)
+            return token
         }
     }
     }
