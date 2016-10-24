@@ -146,25 +146,25 @@ object Parser extends Pipeline[Iterator[Token], Program] {
     
     'ExpressionTimesNext ::= TIMES() ~ 'ExpressionTimes | epsilon(), 
     
-    'ExpressionBang ::= BANG() ~ 'ExpressionBracket | 'ExpressionBracket, // soit il y a un bang devant, soit il y en a pas. 
+    'ExpressionBang ::= BANG() ~ 'ExpressionBracket | 'ExpressionBracket, // soit il y a un bang devant, soit il y en a pas.
     
-    'ExpressionBracket ::= 'ExpressionDot ~ 'ExpressionBracketNext,
+    'ExpressionBracket ::= LBRACKET() ~ 'ExpressionOptional ~ RBRACKET() | 'ExpressionDot,
     
-    'ExpressionBracketNext ::= LBRACKET() ~ 'ExpressionBracketInside | epsilon(),
+    'ExpressionDot ::= 'ExpressionNew ~ 'ExpressionDotNext,
+
+    'ExpressionDotNext ::= DOT() ~ 'ExpressionDotNextFollow | epsilon(), /*'ExpressionOr/*'Identifier*/*/ 
     
-    'ExpressionBracketInside ::= 'ExpressionOptional ~ RBRACKET(), 
+    'ExpressionDotNextFollow ::= 'Identifier ~ LPAREN() ~ 'Args ~ RPAREN() ~ 'ExpressionDotNext | LENGTH(), //'ExpressionDot 
     
-    'ExpressionDot ::= 'ExpressionNew ~ 'ExpressionDotNext, 
-    // En haut, le premier Identifier == Expression !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    'ExpressionDotNext ::= /*'ExpressionOr/*'Identifier*/*/ DOT() ~ 'Identifier ~ LPAREN() ~ 'Args ~ RPAREN() ~ 'ExpressionDot | epsilon(), 
-    
-    'ExpressionNew ::= 'ExpressionFinal ~ 'ExpressionNewNext,
-    
-    'ExpressionNewNext ::= NEW() ~ 'ExpressionNewFollow | epsilon(),
+    'ExpressionNew ::= 'ExpressionNewNext | 'ExpressionFinal ~ 'ExpressionBracketParenAmbiguity, 
+ 
+   'ExpressionNewNext ::= NEW() ~ 'ExpressionNewFollow,
     
     'ExpressionNewFollow ::= INT() ~ LBRACKET() ~ 'ExpressionOr ~ RBRACKET() | 'Identifier ~ LPAREN()  ~ RPAREN(), 
     
-    'ExpressionFinal ::= TRUE() | FALSE() | LPAREN() ~ 'ExpressionOr ~ RPAREN() | THIS() | 'Identifier | STRINGLITSENT | INTLITSENT,
+    'ExpressionBracketParenAmbiguity ::= LBRACKET() ~ 'ExpressionOr ~ RBRACKET() | LPAREN() ~ 'ExpressionOr ~ RPAREN() | epsilon(), // don't stop at ExpressionDot without
+    
+    'ExpressionFinal ::= TRUE() | FALSE() | LPAREN() ~ 'ExpressionOptional ~ RPAREN() | THIS() | 'Identifier | STRINGLITSENT | INTLITSENT,
      
     // END 
     /*
@@ -192,7 +192,8 @@ object Parser extends Pipeline[Iterator[Token], Program] {
       */
     'Args ::= epsilon() | 'ExpressionOr ~ 'ExprList,
     
-    'ExprList ::= 'ExpressionOr ~ 'ExprList,
+   // 'ExprList ::= 'ExpressionOr ~ 'ExprList,
+    'ExprList ::= COMMA() ~ 'ExpressionOr ~ 'ExprList | epsilon(),
     
     //'Op ::= AND() | OR() | EQUALS() | LESSTHAN() | PLUS() | MINUS() | TIMES() | DIV(),
     
