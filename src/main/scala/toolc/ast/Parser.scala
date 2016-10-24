@@ -80,7 +80,7 @@ object Parser extends Pipeline[Iterator[Token], Program] {
     
     'MethodDecs ::= 'MethodDeclaration ~ 'MethodDecs | epsilon(),
     
-    'MethodDeclaration ::= DEF() ~ 'Identifier ~ LPAREN() ~ 'Params ~ RPAREN() ~ COLON() ~ 'Type ~ EQSIGN() ~ LBRACE() ~ 'VarDecs ~ 'Stmts ~ RETURN() ~ 'Expression ~ SEMICOLON() ~ RBRACE(),
+    'MethodDeclaration ::= DEF() ~ 'Identifier ~ LPAREN() ~ 'Params ~ RPAREN() ~ COLON() ~ 'Type ~ EQSIGN() ~ LBRACE() ~ 'VarDecs ~ 'Stmts ~ RETURN() ~ 'ExpressionOr ~ SEMICOLON() ~ RBRACE(),
     
     'Params ::= epsilon() | 'Param ~ 'ParamList,
     
@@ -92,27 +92,86 @@ object Parser extends Pipeline[Iterator[Token], Program] {
     
     'TypeNextInt ::= epsilon() | LBRACKET() ~ RBRACKET(), // par moi
     
-    'Statement ::= IF() ~ LPAREN() ~ 'Expression ~ RPAREN() ~ 'MatchedIf ~ 'ElseOpt
+    'Statement ::= IF() ~ LPAREN() ~ 'ExpressionOr ~ RPAREN() ~ 'MatchedIf ~ 'ElseOpt
       | 'SimpleStat,
       
-    'MatchedIf ::= IF() ~ LPAREN() ~ 'Expression ~ RPAREN() ~ 'MatchedIf ~ ELSE() ~ 'MatchedIf
+    'MatchedIf ::= IF() ~ LPAREN() ~ 'ExpressionOr ~ RPAREN() ~ 'MatchedIf ~ ELSE() ~ 'MatchedIf
       | 'SimpleStat,
       
     'SimpleStat ::= LBRACE() ~ 'Stmts ~ RBRACE()
-      | WHILE() ~ LPAREN() ~ 'Expression ~ RPAREN() ~ 'MatchedIf
-      | PRINTLN() ~ LPAREN() ~ 'Expression ~ RPAREN() ~ SEMICOLON()
+      | WHILE() ~ LPAREN() ~ 'ExpressionOr ~ RPAREN() ~ 'MatchedIf
+      | PRINTLN() ~ LPAREN() ~ 'ExpressionOr ~ RPAREN() ~ SEMICOLON()
       | 'Identifier ~ 'IdStat
-      | DO() ~ LPAREN() ~ 'Expression ~ RPAREN() ~ SEMICOLON(),
+      | DO() ~ LPAREN() ~ 'ExpressionOr ~ RPAREN() ~ SEMICOLON(),
       
-    'IdStat ::= EQSIGN() ~ 'Expression ~ SEMICOLON()
-      | LBRACKET() ~ 'Expression ~ RBRACKET() ~ EQSIGN() ~ 'Expression ~ SEMICOLON(),
+    'IdStat ::= EQSIGN() ~ 'ExpressionOr ~ SEMICOLON()
+      | LBRACKET() ~ 'ExpressionOr ~ RBRACKET() ~ EQSIGN() ~ 'ExpressionOr ~ SEMICOLON(),
       
     'ElseOpt ::= ELSE() ~ 'Statement | epsilon(),
     
-    'Expression ::= INTLITSENT ~'ExpressionNext | STRINGLITSENT // first problématique and Left Recursion
+    // j'enlève même Expression et ExpressionNext
+    // on utilise la left factorization
+    
+    'ExpressionOptional ::= 'ExpressionOr | epsilon(),
+    
+    'ExpressionOr ::= 'ExpressionAnd ~ 'ExpressionOrNext, // d'abord le moins prioritaire, car on veut qu'il soit le plus haut dans l'arbre
+    
+    'ExpressionOrNext ::= OR() ~ 'ExpressionOr | epsilon(), //Expr peut être toute une suite d'opérations, d'abord le least prioritaire
+    
+    'ExpressionAnd ::= 'ExpressionEqu ~ 'ExpressionAndNext,
+    
+    'ExpressionAndNext ::= AND() ~ 'ExpressionAnd | epsilon(),
+    
+    'ExpressionEqu ::= 'ExpressionLessThan ~ 'ExpressionEquNext,
+    
+    'ExpressionEquNext ::= EQUALS() ~ 'ExpressionEqu | epsilon(),
+    
+    'ExpressionLessThan ::= 'ExpressionMinus ~ 'ExpressionLessThanNext,
+    
+    'ExpressionLessThanNext ::= LESSTHAN() ~ 'ExpressionLessThan | epsilon(),
+    
+    'ExpressionMinus ::= 'ExpressionPlus ~ 'ExpressionMinusNext,
+    
+    'ExpressionMinusNext ::= MINUS() ~ 'ExpressionMinus | epsilon(), 
+    
+    'ExpressionPlus ::= 'ExpressionDiv ~ 'ExpressionPlusNext,
+    
+    'ExpressionPlusNext ::= PLUS() ~ 'ExpressionPlus | epsilon(),
+    
+    'ExpressionDiv ::= 'ExpressionTimes ~ 'ExpressionDivNext,
+    
+    'ExpressionDivNext ::= DIV() ~ 'ExpressionDiv | epsilon(),
+    
+    'ExpressionTimes ::= 'ExpressionBang ~ 'ExpressionTimesNext,
+    
+    'ExpressionTimesNext ::= TIMES() ~ 'ExpressionTimes | epsilon(), 
+    
+    'ExpressionBang ::= BANG() ~ 'ExpressionBracket | 'ExpressionBracket, // soit il y a un bang devant, soit il y en a pas. 
+    
+    'ExpressionBracket ::= 'ExpressionDot ~ 'ExpressionBracketNext,
+    
+    'ExpressionBracketNext ::= LBRACKET() ~ 'ExpressionBracketInside | epsilon(),
+    
+    'ExpressionBracketInside ::= 'ExpressionOptional ~ RBRACKET(), 
+    
+    'ExpressionDot ::= 'ExpressionNew ~ 'ExpressionDotNext, 
+    // En haut, le premier Identifier == Expression !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    'ExpressionDotNext ::= /*'ExpressionOr/*'Identifier*/*/ DOT() ~ 'Identifier ~ LPAREN() ~ 'Args ~ RPAREN() ~ 'ExpressionDot | epsilon(), 
+    
+    'ExpressionNew ::= 'ExpressionFinal ~ 'ExpressionNewNext,
+    
+    'ExpressionNewNext ::= NEW() ~ 'ExpressionNewFollow | epsilon(),
+    
+    'ExpressionNewFollow ::= INT() ~ LBRACKET() ~ 'ExpressionOr ~ RBRACKET() | 'Identifier ~ LPAREN()  ~ RPAREN(), 
+    
+    'ExpressionFinal ::= TRUE() | FALSE() | LPAREN() ~ 'ExpressionOr ~ RPAREN() | THIS() | 'Identifier | STRINGLITSENT | INTLITSENT,
+     
+    // END 
+    /*
+    'Expression ::= INTLITSENT ~'ExpressionNext | STRINGLITSENT // first problématique and Left Recursion, tu le décomposes!
       | TRUE() ~ 'ExpressionNext | FALSE() ~'ExpressionNext | 'Identifier | THIS() ~'ExpressionNext
       | NEW() ~ 'ExpressionNextNew
-      | BANG() ~ 'Expression  ~ 'ExpressionNext
+      | BANG() ~ 'Expression  ~ 'ExpressionNext // only place with BANG()
       | LPAREN() ~ 'Expression ~ RPAREN() ~'ExpressionNext,
       
     'ExpressionNextNew ::= INT() ~ LBRACKET() ~ 'Expression ~ RBRACKET() ~ 'ExpressionNext // par moi
@@ -125,19 +184,17 @@ object Parser extends Pipeline[Iterator[Token], Program] {
       
     'ExpressionNext ::= 'Op ~ 'Expression ~ 'ExpressionNext // par moi
       | LBRACKET() ~ 'Expression ~ RBRACKET() ~ 'ExpressionNext
-      | DOT() ~ 'ExpressionNextDot,
-      //| epsilon(),
+      | DOT() ~ 'ExpressionNextDot
+      | epsilon(), 
       
-    'ExpressionEpsilon ::= epsilon(), // TODO j'ai le droit de faire ça?
-      
-    'ExpressionNextDot ::= LENGTH() ~ 'ExpressionNext // TODO est-ce que je peux écrire un non-terminal qui fait référence à un non-terminal plus haut??????????????
+    'ExpressionNextDot ::= LENGTH() ~ 'ExpressionNext // par moi
       | 'Identifier ~ LPAREN() ~ 'Args ~ RPAREN() ~ 'ExpressionNext,
-      
-    'Args ::= epsilon() | 'Expression ~ 'ExprList,
+      */
+    'Args ::= epsilon() | 'ExpressionOr ~ 'ExprList,
     
-    'ExprList ::= 'Expression ~ 'ExprList,
+    'ExprList ::= 'ExpressionOr ~ 'ExprList,
     
-    'Op ::= AND() | OR() | EQUALS() | LESSTHAN() | PLUS() | MINUS() | TIMES() | DIV(),
+    //'Op ::= AND() | OR() | EQUALS() | LESSTHAN() | PLUS() | MINUS() | TIMES() | DIV(),
     
     'Identifier ::= IDSENT
   ))
