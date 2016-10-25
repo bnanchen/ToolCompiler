@@ -178,7 +178,7 @@ object Parser extends Pipeline[Iterator[Token], Program] {
     
 //    'ExpressionBracketParenAmbiguity ::= LBRACKET() ~ 'ExpressionOr ~ RBRACKET() | LPAREN() ~ 'ExpressionOr ~ RPAREN() | epsilon(), // don't stop at ExpressionDot without
     
-    'ExpressionFinal ::= TRUE() | FALSE() | LPAREN() ~ 'ExpressionOptional ~ RPAREN() | THIS() | 'Identifier | STRINGLITSENT | INTLITSENT,
+    'ExpressionFinal ::= TRUE() | FALSE() | LPAREN() ~ 'ExpressionOr ~ RPAREN() | THIS() | 'Identifier | STRINGLITSENT | INTLITSENT,
      
     // END 
     /*

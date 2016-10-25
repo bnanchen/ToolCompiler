@@ -178,7 +178,7 @@ def leftParseTree(expr: ExprTree, ptree: NodeOrLeaf[Token]): ExprTree = {
       }
     case Node('ExpressionEquLessThanNext ::= List(LESSTHAN(), 'ExpressionEquLessThan), List(Leaf(lt), exprEquLessThan)) =>
       exprEquLessThan match {
-        case Node('ExpressionEquLessThan ::= List('ExpressionPlus, 'ExpressionEquLessThanNext), List(exprPlusMinus, exprEqLTNext)) =>
+        case Node('ExpressionEquLessThan ::= List('ExpressionPlusMinus, 'ExpressionEquLessThanNext), List(exprPlusMinus, exprEqLTNext)) =>
           val lessthan = LessThan(expr, constructExprPlusMinus(exprPlusMinus)).setPos(lt)
           leftParseTree(lessthan, exprEqLTNext)
         case _ =>
@@ -265,7 +265,7 @@ override def constructExpr(ptree: NodeOrLeaf[Token]): ExprTree = {
         constructExpr(e).setPos(lp)
     } */
     ptree match {
-      case Node('ExpressionOr ::= _, List(exprAnd, exprOrN)) =>
+      case Node('ExpressionOr ::= List('ExpressionAnd, 'ExpressionOrNext), List(exprAnd, exprOrN)) =>
         val pExprAnd = constructExprAnd(exprAnd)
         /*val o = (
             exprOrN match {
@@ -361,7 +361,7 @@ def constructExprBracket(ptree: NodeOrLeaf[Token]): ExprTree = {
       val pExprD = constructExprDot(exprD)
       val bn = (
           exprBN match {
-            case Node('ExpressionBracketNext ::= List(LBRACKET(), 'ExpressionOptional, RBRACKET()), List(Leaf(lb), exprOpt, Leaf(rb))) =>
+            case Node('ExpressionBracketNext ::= List(LBRACKET(), 'ExpressionOr, RBRACKET()), List(Leaf(lb), exprOpt, Leaf(rb))) =>
               val pExprOpt: ExprTree = constructExpr(exprOpt) 
               Some(NewIntArray(pExprOpt).setPos(lb))
             case _ => None 
@@ -435,7 +435,7 @@ def constructExprFinal(ptree: NodeOrLeaf[Token]): ExprTree = {
       True().setPos(t)
     case Node('ExpressionFinal ::= List(FALSE()), List(Leaf(f@FALSE()))) =>
       False().setPos(f)
-    case Node('ExpressionFinal ::= List(LPAREN(), 'ExpressionOptional, RPAREN()), List(Leaf(lp), exprOpt, _)) => // pas du tout sûr !!!!!!!!!!!!!!!!!!!!!
+    case Node('ExpressionFinal ::= List(LPAREN(), 'ExpressionOr, RPAREN()), List(Leaf(lp), exprOpt, _)) => // pas du tout sûr !!!!!!!!!!!!!!!!!!!!!
       constructExpr(exprOpt)
     case Node('ExpressionFinal ::= List(THIS()), List(Leaf(t@THIS()))) =>
       This().setPos(t)
