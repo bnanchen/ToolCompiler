@@ -78,17 +78,6 @@ override def constructId(ptree: NodeOrLeaf[Token]): Identifier = {
 
 override def constructType(ptree: NodeOrLeaf[Token]): TypeTree = {
     ptree match {
-      /*case Node('Type ::= _, List(Leaf(i@INT()))) =>
-        IntType().setPos(i)
-      case Node('Type ::= List(INT(), LBRACKET(), RBRACKET()), List(Leaf(i@INT()), _, _)) =>
-        IntArrayType().setPos(i)
-      case Node('Type ::= _, List(Leaf(b@BOOLEAN()))) =>
-        BooleanType().setPos(b)
-      case Node('Type ::= _, List(Leaf(s@STRING()))) =>
-        StringType().setPos(s)
-      case Node('Type ::= List('Identifier), List(id)) =>
-        val pid = constructId(id)
-        ClassType(pid).setPos(pid)*/
       case Node('Type ::= List(INT(), 'TypeNextInt), List(Leaf(in@INT()), typeNI)) =>
         typeNI match {
           case Node('TypeNextInt ::= List(LBRACKET(), RBRACKET()), List(Leaf(lb), _)) =>
@@ -227,52 +216,9 @@ def leftParseTree(expr: ExprTree, ptree: NodeOrLeaf[Token]): ExprTree = {
 }
 
 override def constructExpr(ptree: NodeOrLeaf[Token]): ExprTree = {
-   /* ptree match {
-      case Node('Expression ::= List('Expression, 'Op, 'Expression), List(e1, op, e2)) =>
-        val pe1 = constructExpr(e1)
-        val pe2 = constructExpr(e2)
-        constructOp(op)(pe1, pe2).setPos(pe1)
-      case Node('Expression ::= List('Expression, LBRACKET(), 'Expression, RBRACKET()), List(e1, _, e2, _)) =>
-        val pe1 = constructExpr(e1)
-        val pe2 = constructExpr(e2)
-        ArrayRead(pe1, pe2).setPos(pe1)
-      case Node('Expression ::= List('Expression, DOT(), LENGTH()), List(e, _, _)) =>
-        val pe = constructExpr(e)
-        ArrayLength(pe).setPos(pe)
-      case Node('Expression ::= List('Expression, DOT(), 'Identifier, LPAREN(), 'Args, RPAREN()), List(e, _, id, _, as, _)) =>
-        val pe = constructExpr(e)
-        MethodCall(pe, constructId(id), constructList(as, constructExpr, hasComma = true)).setPos(pe)
-      case Node('Expression ::= List(INTLITSENT), List(Leaf(it@INTLIT(i)))) =>
-        IntLit(i).setPos(it)
-      case Node('Expression ::= List(STRINGLITSENT), List(Leaf(st@STRINGLIT(s)))) =>
-        StringLit(s).setPos(st)
-      case Node('Expression ::= _, List(Leaf(tt@TRUE()))) =>
-        True().setPos(tt)
-      case Node('Expression ::= _, List(Leaf(tf@FALSE()))) =>
-        False().setPos(tf)
-      case Node('Expression ::= List('Identifier), List(id)) =>
-        val pid = constructId(id)
-        Variable(pid).setPos(pid)
-      case Node('Expression ::=  _, List(Leaf(tt@THIS()))) =>
-        This().setPos(tt)
-      case Node('Expression ::= List(NEW(), INT(), LBRACKET(), 'Expression, RBRACKET()), List(Leaf(nt), _, _, e, _)) =>
-        NewIntArray(constructExpr(e)).setPos(nt)
-      case Node('Expression ::= List(NEW(), 'Identifier, LPAREN(), RPAREN()), List(Leaf(nt), id, _, _)) =>
-        New(constructId(id)).setPos(nt)
-      case Node('Expression ::= List(BANG(), 'Expression), List(Leaf(bt), e)) =>
-        Not(constructExpr(e)).setPos(bt)
-      case Node('Expression ::= List(LPAREN(), 'Expression, RPAREN()), List(Leaf(lp), e, _)) =>
-        constructExpr(e).setPos(lp)
-    } */
     ptree match {
       case Node('ExpressionOr ::= List('ExpressionAnd, 'ExpressionOrNext), List(exprAnd, exprOrN)) =>
         val pExprAnd = constructExprAnd(exprAnd)
-        /*val o = (
-            exprOrN match {
-              case Node('ExpressionOrNext ::= List(OR(), 'ExpressionOr), List(Leaf(o), exprOr)) =>
-                Some(Or(pExprAnd, constructExpr(exprOr)).setPos(o))
-              case _ => None
-            })*/
           leftParseTree(pExprAnd, exprOrN) 
 }
 }
@@ -281,12 +227,6 @@ def constructExprAnd(ptree: NodeOrLeaf[Token]): ExprTree = {
   ptree match {
     case Node('ExpressionAnd ::= List('ExpressionEquLessThan, 'ExpressionAndNext), List(exprEqLT, exprAndN)) =>
       val pExprEqLT = constructExprEquLessThan(exprEqLT)
-     /* val e = (
-          exprAndN match {
-            case Node('ExpressionAndNext ::= List(AND(), 'ExpressionAnd), List(Leaf(a), exprA)) =>
-              Some(And(pExprEq, constructExprAnd(exprA)).setPos(a))
-            case _ => None
-          })*/
       leftParseTree(pExprEqLT, exprAndN)
   }
 }
@@ -295,16 +235,6 @@ def constructExprEquLessThan(ptree: NodeOrLeaf[Token]): ExprTree = {
   ptree match {
     case Node('ExpressionEquLessThan ::= List('ExpressionPlusMinus ,'ExpressionEquLessThanNext), List(exprPM, exprELT)) =>
       val pExprPM = constructExprPlusMinus(exprPM)
-      /*val elt = (
-      exprELT match {
-        case Node('ExpressionEquLessThanNext ::= List(EQUALS(), 'ExpressionEquLessThan), List(Leaf(equ), exprELT)) =>
-          val pExprELT = constructExprEquLessThan(exprELT)
-          Some(Equals(pExprPM, pExprELT).setPos(equ))
-        case Node('ExpressionEquLessThanNext ::= List(LESSTHAN(), 'ExpressionEquLessThan), List(Leaf(lt), exprELT)) =>
-          val pExprELT = constructExprEquLessThan(exprELT)
-          Some(LessThan(pExprPM, pExprELT).setPos(lt))
-        case _ => None
-      })*/
       leftParseTree(pExprPM, exprELT)
   }
 }
@@ -313,16 +243,6 @@ def constructExprPlusMinus(ptree: NodeOrLeaf[Token]): ExprTree = {
   ptree match {
     case Node('ExpressionPlusMinus ::= List('ExpressionDivTimes, 'ExpressionPlusMinusNext), List(exprDT, exprPMN)) =>
       val pExprDT = constructExprDivTimes(exprDT)
-      /*val pmn = (
-          exprPMN match {
-            case Node('ExpressionPlusMinusNext ::= List(MINUS(), 'ExpressionPlusMinus), List(Leaf(m), exprPM)) =>
-              val pExprPM = constructExprPlusMinus(exprPM)
-              Some(Minus(pExprDT, pExprPM).setPos(m))
-            case Node('ExpressionPLusMinusNext ::= List(PLUS(), 'ExpressionPlusMinus), List(Leaf(p), exprPM)) =>
-              val pExprPM = constructExprPlusMinus(exprPM)
-              Some(Plus(pExprDT, pExprPM).setPos(p))
-            case _ => None
-          })*/
       leftParseTree(pExprDT, exprPMN)
   }
 }
@@ -331,16 +251,6 @@ def constructExprDivTimes(ptree: NodeOrLeaf[Token]): ExprTree = {
   ptree match {
     case Node('ExpressionDivTimes ::= List('ExpressionBang, 'ExpressionDivTimesNext), List(exprB, exprDTN)) =>
       val pExprB = constructExprBang(exprB)
-      /*val dtn = (
-          exprDTN match {
-            case Node('ExpressionDivTimesNext ::= List(DIV(), 'ExpressionDivTimes), List(Leaf(d), exprDT)) =>
-              val pExprDT = constructExprDivTimes(exprDT)
-              Some(Div(pExprB, pExprDT).setPos(d))
-            case Node('ExpressionDivTimesNext ::= List(TIMES(), 'ExpressionDivTimes), List(Leaf(t), exprDT)) =>
-              val pExprDT = constructExprDivTimes(exprDT)
-              Some(Times(pExprB, pExprDT).setPos(t))
-            case _ => None
-          })*/
       leftParseTree(pExprB, exprDTN)
   }
 }
@@ -367,50 +277,12 @@ def constructExprBracket(ptree: NodeOrLeaf[Token]): ExprTree = {
             case _ => None 
           })
       if (bn.isDefined) {
-        bn.get // TODO comment je fais pour relancer pExprD??????????????????????????????????????????????????????????????????????????????????????
+        bn.get 
       } else {
         pExprD
       }
   }
 }
-
-/*def constructExprDotNextFollow(ptree: NodeOrLeaf[Token], exprN: ExprTree): ExprTree = {
-  ptree match {
-        case Node('ExpressionDotNextFollow ::= List('Identifier, LPAREN(), 'Args, RPAREN(), 'ExpressionDotNext), List(id, Leaf(lp), args, _, exprDN)) =>
-          val i = constructId(id)
-          val a = constructList(args, constructExpr, hasComma = true)
-          //val pExprDN = constructExprDotNext(exprDN, exprN) //expressionDotNext et non expressionDot!!!!
-         /* exprDN match {
-            case Node('ExpressionDotNext ::= List(DOT(), 'ExpressionDotNextFollow), List(Leaf(d), exprDNF)) =>
-                 val pExprDNF = constructExprDotNextFollow(exprDNF, exprN)
-          }*/
-          MethodCall(exprN, i, a).setPos(exprN)
-        case Node('ExpressionDotNextFollow ::= List(LENGTH()), List(Leaf(ln))) =>
-          ArrayLength(exprN).setPos(ln)
-  }
-}*/
-
-/*def constructExprDotNext(ptree: NodeOrLeaf[Token], exprN: ExprTree): Option[ExprTree] = {
-  ptree match {
-    case Node('ExpressionDotNext ::= List(DOT(), 'ExpressionDotNextFollow), List(Leaf(d), exprDNF)) =>
-             val pExprDNF = constructExprDotNextFollow(exprDNF, exprN)
-             Some(pExprDNF)
-    case _ => None
-  }
-}*/
-
-/*def constructExprDot(ptree: NodeOrLeaf[Token]): ExprTree = {
-  ptree match {
-    case Node('ExpressionDot ::= List('ExpressionNew, 'ExpressionDotNext), List(exprN, exprDN)) =>
-      val pExprN = constructExprNew(exprN)
-      val dn = constructExprDotNext(exprDN, pExprN)
-      if (dn.isDefined) {
-        dn.get
-      } else {
-        pExprN
-      }
-  }
-}*/
 
 def constructExprDotNext(ptree: NodeOrLeaf[Token], obj: ExprTree): ExprTree = {
   ptree match {

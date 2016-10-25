@@ -109,7 +109,7 @@ object Parser extends Pipeline[Iterator[Token], Program] {
       
     'ElseOpt ::= ELSE() ~ 'Statement | epsilon(),
     
-    // j'enlève même Expression et ExpressionNext, on décompose tout pour faire respecter la precedence des opérations
+    // On décompose tout pour faire respecter la precedence des opérations
     // on utilise la left factorization
     
     'ExpressionOptional ::= 'ExpressionOr | epsilon(),
@@ -126,37 +126,13 @@ object Parser extends Pipeline[Iterator[Token], Program] {
     
     'ExpressionEquLessThanNext ::= EQUALS() ~ 'ExpressionEquLessThan | LESSTHAN() ~ 'ExpressionEquLessThan | epsilon(), // à cause de la precedence des operations
     
-//    'ExpressionEqu ::= 'ExpressionLessThan ~ 'ExpressionEquNext,
-    
-//    'ExpressionEquNext ::= EQUALS() ~ 'ExpressionEqu | epsilon(),
-    
-//    'ExpressionLessThan ::= 'ExpressionMinus ~ 'ExpressionLessThanNext,
-    
-//    'ExpressionLessThanNext ::= LESSTHAN() ~ 'ExpressionLessThan | epsilon(),
-    
     'ExpressionPlusMinus ::= 'ExpressionDivTimes ~ 'ExpressionPlusMinusNext, // à cause de la precedence des operations
     
     'ExpressionPlusMinusNext ::= MINUS() ~ 'ExpressionPlusMinus | PLUS() ~ 'ExpressionPlusMinus | epsilon(),
     
-//    'ExpressionMinus ::= 'ExpressionPlus ~ 'ExpressionMinusNext,
-    
-//    'ExpressionMinusNext ::= MINUS() ~ 'ExpressionMinus | epsilon(), 
-    
-//    'ExpressionPlus ::= 'ExpressionDiv ~ 'ExpressionPlusNext,
-    
-//    'ExpressionPlusNext ::= PLUS() ~ 'ExpressionPlus | epsilon(),
-    
     'ExpressionDivTimes ::= 'ExpressionBang ~ 'ExpressionDivTimesNext, // à cause de la precedence des operations
     
     'ExpressionDivTimesNext ::= DIV() ~ 'ExpressionDivTimes | TIMES() ~ 'ExpressionDivTimes | epsilon(),
-    
-//    'ExpressionDiv ::= 'ExpressionTimes ~ 'ExpressionDivNext,
-    
-//    'ExpressionDivNext ::= DIV() ~ 'ExpressionDiv | epsilon(),
-    
-//    'ExpressionTimes ::= 'ExpressionBang ~ 'ExpressionTimesNext,
-    
-//    'ExpressionTimesNext ::= TIMES() ~ 'ExpressionTimes | epsilon(), 
     
     'ExpressionBang ::= BANG() ~ 'ExpressionBracket | 'ExpressionBracket, // soit il y a un bang devant, soit il y en a pas.
     
@@ -166,7 +142,7 @@ object Parser extends Pipeline[Iterator[Token], Program] {
     
     'ExpressionDot ::= 'ExpressionNew ~ 'ExpressionDotNext,
 
-    'ExpressionDotNext ::= DOT() ~ 'ExpressionDotNextFollow | epsilon(), /*'ExpressionOr/*'Identifier*/*/ 
+    'ExpressionDotNext ::= DOT() ~ 'ExpressionDotNextFollow | epsilon(), 
     
     'ExpressionDotNextFollow ::= 'Identifier ~ LPAREN() ~ 'Args ~ RPAREN() ~ 'ExpressionDotNext | LENGTH(), //'ExpressionDot 
     
@@ -175,41 +151,12 @@ object Parser extends Pipeline[Iterator[Token], Program] {
     'ExpressionNewNext ::= NEW() ~ 'ExpressionNewFollow,
     
     'ExpressionNewFollow ::= INT() ~ LBRACKET() ~ 'ExpressionOr ~ RBRACKET() | 'Identifier ~ LPAREN()  ~ RPAREN(), 
-    
-//    'ExpressionBracketParenAmbiguity ::= LBRACKET() ~ 'ExpressionOr ~ RBRACKET() | LPAREN() ~ 'ExpressionOr ~ RPAREN() | epsilon(), // don't stop at ExpressionDot without
-    
+        
     'ExpressionFinal ::= TRUE() | FALSE() | LPAREN() ~ 'ExpressionOr ~ RPAREN() | THIS() | 'Identifier | STRINGLITSENT | INTLITSENT,
      
-    // END 
-    /*
-    'Expression ::= INTLITSENT ~'ExpressionNext | STRINGLITSENT // first problématique and Left Recursion, tu le décomposes!
-      | TRUE() ~ 'ExpressionNext | FALSE() ~'ExpressionNext | 'Identifier | THIS() ~'ExpressionNext
-      | NEW() ~ 'ExpressionNextNew
-      | BANG() ~ 'Expression  ~ 'ExpressionNext // only place with BANG()
-      | LPAREN() ~ 'Expression ~ RPAREN() ~'ExpressionNext,
-      
-    'ExpressionNextNew ::= INT() ~ LBRACKET() ~ 'Expression ~ RBRACKET() ~ 'ExpressionNext // par moi
-      | 'Identifier ~ LPAREN() ~ RPAREN() ~ 'ExpressionNext, 
-      
-    /*'ExpressionNext ::=  'Op ~ 'Expression ~'ExpressionNext // par moi, stop Left Recursion of 'Expression
-      | LBRACKET() ~ 'Expression ~ RBRACKET() ~ 'ExpressionNext
-      | DOT() ~ 'ExpressionNextDot
-      | epsilon(),*/
-      
-    'ExpressionNext ::= 'Op ~ 'Expression ~ 'ExpressionNext // par moi
-      | LBRACKET() ~ 'Expression ~ RBRACKET() ~ 'ExpressionNext
-      | DOT() ~ 'ExpressionNextDot
-      | epsilon(), 
-      
-    'ExpressionNextDot ::= LENGTH() ~ 'ExpressionNext // par moi
-      | 'Identifier ~ LPAREN() ~ 'Args ~ RPAREN() ~ 'ExpressionNext,
-      */
     'Args ::= epsilon() | 'ExpressionOr ~ 'ExprList,
     
-   // 'ExprList ::= 'ExpressionOr ~ 'ExprList,
     'ExprList ::= COMMA() ~ 'ExpressionOr ~ 'ExprList | epsilon(),
-    
-    //'Op ::= AND() | OR() | EQUALS() | LESSTHAN() | PLUS() | MINUS() | TIMES() | DIV(),
     
     'Identifier ::= IDSENT
   ))
