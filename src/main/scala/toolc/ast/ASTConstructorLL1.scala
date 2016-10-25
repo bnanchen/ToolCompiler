@@ -363,7 +363,7 @@ def constructExprBracket(ptree: NodeOrLeaf[Token]): ExprTree = {
           exprBN match {
             case Node('ExpressionBracketNext ::= List(LBRACKET(), 'ExpressionOr, RBRACKET()), List(Leaf(lb), exprOpt, Leaf(rb))) =>
               val pExprOpt: ExprTree = constructExpr(exprOpt) 
-              Some(NewIntArray(pExprOpt).setPos(lb))
+              Some(ArrayRead(pExprD, pExprOpt).setPos(lb))
             case _ => None 
           })
       if (bn.isDefined) {
@@ -374,28 +374,32 @@ def constructExprBracket(ptree: NodeOrLeaf[Token]): ExprTree = {
   }
 }
 
-def constructExprDotNextFollow(ptree: NodeOrLeaf[Token], exprN: ExprTree): ExprTree = {
+/*def constructExprDotNextFollow(ptree: NodeOrLeaf[Token], exprN: ExprTree): ExprTree = {
   ptree match {
         case Node('ExpressionDotNextFollow ::= List('Identifier, LPAREN(), 'Args, RPAREN(), 'ExpressionDotNext), List(id, Leaf(lp), args, _, exprDN)) =>
           val i = constructId(id)
           val a = constructList(args, constructExpr, hasComma = true)
-          val pExprDN = constructExprDotNext(exprDN, exprN) //expressionDotNext et non expressionDot!!!!
+          //val pExprDN = constructExprDotNext(exprDN, exprN) //expressionDotNext et non expressionDot!!!!
+         /* exprDN match {
+            case Node('ExpressionDotNext ::= List(DOT(), 'ExpressionDotNextFollow), List(Leaf(d), exprDNF)) =>
+                 val pExprDNF = constructExprDotNextFollow(exprDNF, exprN)
+          }*/
           MethodCall(exprN, i, a).setPos(exprN)
         case Node('ExpressionDotNextFollow ::= List(LENGTH()), List(Leaf(ln))) =>
           ArrayLength(exprN).setPos(ln)
   }
-}
+}*/
 
-def constructExprDotNext(ptree: NodeOrLeaf[Token], exprN: ExprTree): Option[ExprTree] = {
+/*def constructExprDotNext(ptree: NodeOrLeaf[Token], exprN: ExprTree): Option[ExprTree] = {
   ptree match {
     case Node('ExpressionDotNext ::= List(DOT(), 'ExpressionDotNextFollow), List(Leaf(d), exprDNF)) =>
              val pExprDNF = constructExprDotNextFollow(exprDNF, exprN)
              Some(pExprDNF)
     case _ => None
   }
-}
+}*/
 
-def constructExprDot(ptree: NodeOrLeaf[Token]): ExprTree = {
+/*def constructExprDot(ptree: NodeOrLeaf[Token]): ExprTree = {
   ptree match {
     case Node('ExpressionDot ::= List('ExpressionNew, 'ExpressionDotNext), List(exprN, exprDN)) =>
       val pExprN = constructExprNew(exprN)
@@ -405,6 +409,42 @@ def constructExprDot(ptree: NodeOrLeaf[Token]): ExprTree = {
       } else {
         pExprN
       }
+  }
+}*/
+
+def constructExprDotNext(ptree: NodeOrLeaf[Token], obj: ExprTree): ExprTree = {
+  ptree match {
+    case Node('ExpressionDotNext ::= List(DOT(), 'ExpressionDotNextFollow), List(Leaf(d), exprDotNextFollow)) =>
+      exprDotNextFollow match {
+        case Node('ExpressionDotNextFollow ::= List('Identifier, LPAREN(), 'Args, RPAREN(), 'ExpressionDotNext), List(id, _, args, _, exprDotNext)) =>
+          val pid = constructId(id)
+          val a = constructList(args, constructExpr, hasComma = true)
+          val expr = MethodCall(obj, pid, a).setPos(d) 
+          exprDotNext match {
+            case Node('ExpressionDotNext ::= List(DOT(), 'ExpressionDotNextFollow), List(Leaf(dot), exprDNF)) =>
+              constructExprDotNext(exprDotNext, expr)
+            case _ => 
+              expr
+          }
+      }
+  }
+}
+
+def constructExprDot(ptree: NodeOrLeaf[Token]): ExprTree = {
+  ptree match {
+    case Node('ExpressionDot ::= List('ExpressionNew, 'ExpressionDotNext), List(exprNew, exprDotNext)) =>
+      val pExprNew = constructExprNew(exprNew)
+      val n = ( //constructExprDotNext(exprDotNext, pExprNew)
+      exprDotNext match {
+        case Node('ExpressionDotNext ::= List(DOT(), 'ExpressionDotNextFollow), List(Leaf(d), exprDotNextFollow)) =>
+          Some(constructExprDotNext(exprDotNext, pExprNew))
+        case _ => None
+      })
+     if (n.isDefined) {
+       n.get
+     } else {
+       pExprNew
+     }
   }
 }
 
