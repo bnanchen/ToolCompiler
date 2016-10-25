@@ -426,6 +426,8 @@ def constructExprDotNext(ptree: NodeOrLeaf[Token], obj: ExprTree): ExprTree = {
             case _ => 
               expr
           }
+        case Node('ExpressionDotNextFollow ::= List(LENGTH()), List(Leaf(len))) =>
+          ArrayLength(obj).setPos(len)
       }
   }
 }
