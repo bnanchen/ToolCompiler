@@ -109,7 +109,7 @@ object Parser extends Pipeline[Iterator[Token], Program] {
       
     'ElseOpt ::= ELSE() ~ 'Statement | epsilon(),
     
-    // j'enlève même Expression et ExpressionNext
+    // j'enlève même Expression et ExpressionNext, on décompose tout pour faire respecter la precedence des opérations
     // on utilise la left factorization
     
     'ExpressionOptional ::= 'ExpressionOr | epsilon(),
@@ -118,37 +118,51 @@ object Parser extends Pipeline[Iterator[Token], Program] {
     
     'ExpressionOrNext ::= OR() ~ 'ExpressionOr | epsilon(), //Expr peut être toute une suite d'opérations, d'abord le least prioritaire
     
-    'ExpressionAnd ::= 'ExpressionEqu ~ 'ExpressionAndNext,
+    'ExpressionAnd ::= 'ExpressionEquLessThan ~ 'ExpressionAndNext,
     
     'ExpressionAndNext ::= AND() ~ 'ExpressionAnd | epsilon(),
     
-    'ExpressionEqu ::= 'ExpressionLessThan ~ 'ExpressionEquNext,
+    'ExpressionEquLessThan ::= 'ExpressionPlusMinus ~ 'ExpressionEquLessThanNext,
     
-    'ExpressionEquNext ::= EQUALS() ~ 'ExpressionEqu | epsilon(),
+    'ExpressionEquLessThanNext ::= EQUALS() ~ 'ExpressionEquLessThan | LESSTHAN() ~ 'ExpressionEquLessThan | epsilon(), // à cause de la precedence des operations
     
-    'ExpressionLessThan ::= 'ExpressionMinus ~ 'ExpressionLessThanNext,
+//    'ExpressionEqu ::= 'ExpressionLessThan ~ 'ExpressionEquNext,
     
-    'ExpressionLessThanNext ::= LESSTHAN() ~ 'ExpressionLessThan | epsilon(),
+//    'ExpressionEquNext ::= EQUALS() ~ 'ExpressionEqu | epsilon(),
     
-    'ExpressionMinus ::= 'ExpressionPlus ~ 'ExpressionMinusNext,
+//    'ExpressionLessThan ::= 'ExpressionMinus ~ 'ExpressionLessThanNext,
     
-    'ExpressionMinusNext ::= MINUS() ~ 'ExpressionMinus | epsilon(), 
+//    'ExpressionLessThanNext ::= LESSTHAN() ~ 'ExpressionLessThan | epsilon(),
     
-    'ExpressionPlus ::= 'ExpressionDiv ~ 'ExpressionPlusNext,
+    'ExpressionPlusMinus ::= 'ExpressionDivTimes ~ 'ExpressionPlusMinusNext, // à cause de la precedence des operations
     
-    'ExpressionPlusNext ::= PLUS() ~ 'ExpressionPlus | epsilon(),
+    'ExpressionPlusMinusNext ::= MINUS() ~ 'ExpressionPlusMinus | PLUS() ~ 'ExpressionPlusMinus | epsilon(),
     
-    'ExpressionDiv ::= 'ExpressionTimes ~ 'ExpressionDivNext,
+//    'ExpressionMinus ::= 'ExpressionPlus ~ 'ExpressionMinusNext,
     
-    'ExpressionDivNext ::= DIV() ~ 'ExpressionDiv | epsilon(),
+//    'ExpressionMinusNext ::= MINUS() ~ 'ExpressionMinus | epsilon(), 
     
-    'ExpressionTimes ::= 'ExpressionBang ~ 'ExpressionTimesNext,
+//    'ExpressionPlus ::= 'ExpressionDiv ~ 'ExpressionPlusNext,
     
-    'ExpressionTimesNext ::= TIMES() ~ 'ExpressionTimes | epsilon(), 
+//    'ExpressionPlusNext ::= PLUS() ~ 'ExpressionPlus | epsilon(),
+    
+    'ExpressionDivTimes ::= 'ExpressionBang ~ 'ExpressionDivTimesNext, // à cause de la precedence des operations
+    
+    'ExpressionDivTimesNext ::= DIV() ~ 'ExpressionDivTimes | TIMES() ~ 'ExpressionDivTimes | epsilon(),
+    
+//    'ExpressionDiv ::= 'ExpressionTimes ~ 'ExpressionDivNext,
+    
+//    'ExpressionDivNext ::= DIV() ~ 'ExpressionDiv | epsilon(),
+    
+//    'ExpressionTimes ::= 'ExpressionBang ~ 'ExpressionTimesNext,
+    
+//    'ExpressionTimesNext ::= TIMES() ~ 'ExpressionTimes | epsilon(), 
     
     'ExpressionBang ::= BANG() ~ 'ExpressionBracket | 'ExpressionBracket, // soit il y a un bang devant, soit il y en a pas.
     
-    'ExpressionBracket ::= LBRACKET() ~ 'ExpressionOptional ~ RBRACKET() | 'ExpressionDot,
+    'ExpressionBracket ::= 'ExpressionDot ~ 'ExpressionBracketNext,
+    
+    'ExpressionBracketNext ::= LBRACKET() ~ 'ExpressionOr ~ RBRACKET() | epsilon(), // on peut enlever ExpressionOptional car gérer dans le cas du 'ExpressionNewFollow
     
     'ExpressionDot ::= 'ExpressionNew ~ 'ExpressionDotNext,
 
@@ -156,13 +170,13 @@ object Parser extends Pipeline[Iterator[Token], Program] {
     
     'ExpressionDotNextFollow ::= 'Identifier ~ LPAREN() ~ 'Args ~ RPAREN() ~ 'ExpressionDotNext | LENGTH(), //'ExpressionDot 
     
-    'ExpressionNew ::= 'ExpressionNewNext | 'ExpressionFinal ~ 'ExpressionBracketParenAmbiguity, 
+    'ExpressionNew ::= 'ExpressionNewNext | 'ExpressionFinal, 
  
-   'ExpressionNewNext ::= NEW() ~ 'ExpressionNewFollow,
+    'ExpressionNewNext ::= NEW() ~ 'ExpressionNewFollow,
     
     'ExpressionNewFollow ::= INT() ~ LBRACKET() ~ 'ExpressionOr ~ RBRACKET() | 'Identifier ~ LPAREN()  ~ RPAREN(), 
     
-    'ExpressionBracketParenAmbiguity ::= LBRACKET() ~ 'ExpressionOr ~ RBRACKET() | LPAREN() ~ 'ExpressionOr ~ RPAREN() | epsilon(), // don't stop at ExpressionDot without
+//    'ExpressionBracketParenAmbiguity ::= LBRACKET() ~ 'ExpressionOr ~ RBRACKET() | LPAREN() ~ 'ExpressionOr ~ RPAREN() | epsilon(), // don't stop at ExpressionDot without
     
     'ExpressionFinal ::= TRUE() | FALSE() | LPAREN() ~ 'ExpressionOptional ~ RPAREN() | THIS() | 'Identifier | STRINGLITSENT | INTLITSENT,
      
