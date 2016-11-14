@@ -89,10 +89,10 @@ object NameAnalysis extends Pipeline[Program, Program] {
        
         // first I collect the methods of the class:
         for (m <- c.methods) {
-          val mSym = new MethodSymbol(m.id.value, global.classes(m.id.value))
+          val mSym = new MethodSymbol(m.id.value, global.classes(m.id.value)).setPos(m)
           
           for (p <- m.vars) {
-            mSym.members += (p.id.value -> new VariableSymbol(p.id.value))
+            mSym.members += (p.id.value -> new VariableSymbol(p.id.value).setPos(p))
             // verify that two members have not the same name
             if (m.vars.filter { x => (x.id.value==p.id.value)}.size != 1) {
               error("Two members of one method can't have the same name.")
@@ -100,7 +100,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
           }
           
           for (a <- m.args) {
-            val aSym = new VariableSymbol(a.id.value)
+            val aSym = new VariableSymbol(a.id.value).setPos(a)
             mSym.params += (a.id.value -> aSym)
             mSym.argList = mSym.argList :+ aSym
             // verify that two arguments have note the same name
@@ -134,7 +134,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
         
         // second the variables: 
         for (v <- c.vars) {
-          val vSym = new VariableSymbol(v.id.value)
+          val vSym = new VariableSymbol(v.id.value).setPos(v)
           // Verify that two variables have not the same name
           if (c.vars.filter { x => (x.id.value==v.id.value) }.size != 1) {
             error("Two variables of one class can't have the same name.")
@@ -173,11 +173,55 @@ object NameAnalysis extends Pipeline[Program, Program] {
     }
 
     def setMSymbols(meth: MethodDecl, gs: GlobalScope, cs: ClassSymbol): Unit = {
+      val methodSym = cs.lookupMethod(meth.id.value).get
+      for (varDecl <- meth.vars) {
+        setTypeSymbol(varDecl.tpe, gs)
+      }
+//      class MethodDecl(id: Identifier,
+//                        args: List[Formal],
+//                        retType: TypeTree,
+//                        vars: List[VarDecl],
+//                        stats: List[StatTree],
+//                        retExpr: ExprTree)
+      for (args <- meth.args) {
+        setTypeSymbol(args.tpe, gs)
+      }
+      setESymbols(meth.retExpr)(gs, Some(methodSym))
+      setTypeSymbol(meth.retType, gs)
+      meth.stats.foreach(setSSymbols(_)(gs, Some(methodSym)))
       
     }
 
     def setSSymbols(stat: StatTree)(implicit gs: GlobalScope, ms: Option[MethodSymbol]): Unit = {
-      ??? // TODO
+      
+      stat match {
+        case Block(stats) => stats.foreach(setSSymbols(_))
+        case If(expr, thn, els) => {
+          setESymbols(expr)
+          setSSymbols(thn)
+          els.getOrElse(Nil) match {
+            case st: StatTree => setSSymbols(st)
+            case Nil =>
+          }
+        }
+        case While(expr, stat) => {
+          setESymbols(expr)
+          setSSymbols(stat)
+        }
+        case Println(expr) => setESymbols(expr)
+        case Assign(id, expr) => {
+          setISymbol(id)
+          setESymbols(expr)
+        }
+        case ArrayAssign(id, index, expr) => {
+          setISymbol(id)
+          setESymbols(index)
+          setESymbols(expr)
+        }
+        case DoExpr(e) => {
+          setESymbols(e)
+        }
+      }
     }
 
     def setISymbol(id: Identifier)(implicit ms: Option[MethodSymbol]) = {
@@ -191,11 +235,69 @@ object NameAnalysis extends Pipeline[Program, Program] {
     }
 
     def setESymbols(expr: ExprTree)(implicit gs: GlobalScope, ms: Option[MethodSymbol]): Unit = {
-      ??? // TODO
+      
+      expr match {
+        case And(lhs, rhs) => {
+          setESymbols(lhs)
+          setESymbols(rhs)
+        }
+        case Or(lhs, rhs) => {
+          setESymbols(lhs)
+          setESymbols(rhs)
+        }
+        case Plus(lhs, rhs) => {
+          setESymbols(lhs)
+          setESymbols(rhs) 
+        }
+        case Minus(lhs, rhs) => {
+          setESymbols(lhs)
+          setESymbols(rhs)
+        }
+        case Times(lhs, rhs) => {
+          setESymbols(lhs)
+          setESymbols(rhs)
+        }
+        case Div(lhs, rhs) => {
+          setESymbols(lhs) 
+          setESymbols(rhs) 
+        }
+        case LessThan(lhs, rhs) => {
+          setESymbols(lhs)
+          setESymbols(rhs)
+        }
+        case Equals(lhs, rhs) => {
+          setESymbols(lhs)
+          setESymbols(rhs)
+        }
+        case ArrayRead(arr, index) => {
+          setESymbols(arr)
+          setESymbols(index)
+        }
+        case ArrayLength(arr) => setESymbols(arr)
+        case MethodCall(obj, meth, args) => {
+          setESymbols(obj)
+          setISymbol(meth)
+          args.foreach(setESymbols(_))
+        }
+        case Variable(id) => setISymbol(id)
+        case t: This => { //  case class This() extends ExprTree with Symbolic[ClassSymbol]
+          // TODO faire attention pas de this dans Main 
+          t.setSymbol(ms.get.classSymbol)
+        }
+        case NewIntArray(size) => setESymbols(size)
+        case New(tpe) => setISymbol(tpe)
+        case Not(expr) => setESymbols(expr)
+        case _ => 
+      }
     }
 
     def setTypeSymbol(tpe: TypeTree, gs: GlobalScope): Unit = {
-      ??? // TODO
+      // Types
+//  case class ClassType(id: Identifier) extends TypeTree
+      tpe match {
+        case ClassType(id) => setISymbol(id)(None) // TODO normalement rejette une erreur??
+        case _ => 
+      }
     }
 
     val gs = collectSymbols(prog)
