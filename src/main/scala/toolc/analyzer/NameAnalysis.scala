@@ -24,16 +24,16 @@ object NameAnalysis extends Pipeline[Program, Program] {
         // verify
         if (global.classes.contains(c.id.value)) {
           error("At least two classes have the same name.")
-        } else {
-          // verify
-          if (c.id.value == "Object") {
+        } else if (c.id.value == "Object") {
             error("No classes can't be named 'Object'.")
+          } else if (c.id.value == prog.main.id.value) {
+            error("A class can't have the same name as the Main classe.")
           }
           val clSym = new ClassSymbol(c.id.value).setPos(c) 
           c.setSymbol(clSym)
           c.id.setSymbol(clSym)
           global.classes = global.classes.+((c.id.value, clSym))
-        }
+        
       }
 
       // Set parent Symbols
@@ -183,17 +183,18 @@ object NameAnalysis extends Pipeline[Program, Program] {
       meth.setSymbol(methodSym)
       meth.id.setSymbol(methodSym)
       for (varDecl <- meth.vars) {
+        varDecl.setSymbol(methodSym.lookupVar(varDecl.id.value).get) // ajouté par moi
         varDecl.id.setSymbol(methodSym.lookupVar(varDecl.id.value).get) // ajouté par moi
         setTypeSymbol(varDecl.tpe, gs)
       }
       for (args <- meth.args) {
-        // TODO: faire aussi un setSymbol??
+        args.setSymbol(methodSym.lookupVar(args.id.value).get) // ajouté par moi
+        args.id.setSymbol(methodSym.lookupVar(args.id.value).get) // ajouté par moi
         setTypeSymbol(args.tpe, gs)
       }
       setESymbols(meth.retExpr)(gs, Some(methodSym))
       setTypeSymbol(meth.retType, gs)
       meth.stats.foreach(setSSymbols(_)(gs, Some(methodSym)))
-      // TODO: quand est-ce que je fixe le symbol des déclaraions de classes et de méthodes?
     }
 
     def setSSymbols(stat: StatTree)(implicit gs: GlobalScope, ms: Option[MethodSymbol]): Unit = {
