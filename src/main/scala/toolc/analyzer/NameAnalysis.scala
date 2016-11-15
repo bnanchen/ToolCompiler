@@ -83,14 +83,25 @@ object NameAnalysis extends Pipeline[Program, Program] {
         //case class ClassDecl(id: Identifier, parent: Option[Identifier], vars: List[VarDecl], methods: List[MethodDecl])
         // je dois ajouter aux ClassSymbol de global.classes
         // first the parents
-        val toOverride: Option[ClassSymbol] = {
+       /* val toOverride: Option[ClassSymbol] = {
           c.parent match {
             case Some(cl) => {
               collectInClass(prog.classes.filter{ (x: ClassDecl) => (x.id.value==cl.value) }(0)) // I'm sure because 2 classes can't have same name
               global.classes.get(cl.value) // toOverride is the ClassSymbol of the parent if it exists
             }
             case None => None
-        }}
+        }}*/
+        
+        def acc(klass: Option[Identifier]): List[Option[ClassSymbol]] = klass match {
+          case Some(cl) => {
+            val classDec = prog.classes.filter{ (x: ClassDecl) => (x.id.value==cl.value) }(0)
+            collectInClass(classDec)
+            global.lookupClass(cl.value) :: acc(classDec.parent)
+          }
+          case None => Nil
+        }
+        val toOverride = acc(c.parent)
+        
         // first I collect the methods of the class:
         for (m <- c.methods) {
           val mSym = new MethodSymbol(m.id.value, global.classes(c.id.value)).setPos(m) 
@@ -118,11 +129,28 @@ object NameAnalysis extends Pipeline[Program, Program] {
             error("In a method, two parameters/local variables can't have the same name.")
           }
           
-          toOverride match { // control if the method override another one
+          
+          def controlMethodOverride(toOverride: Option[ClassSymbol]) = toOverride match {
+            case None => 
             case Some(clSym) => {
               clSym.methods.get(m.id.value) match {
                 case Some(mtdSym) => {
-                  if (mtdSym.argList.size != mSym.argList.size) { // the two methods must have the same number of arguments
+                  if (mtdSym.params.keys.size != mSym.params.keys.size) { // the two methods must have the same number of arguments
+                    error("A method can't override another with a different number of parameters.")
+                  }
+                  mSym.overridden = clSym.methods.get(m.id.value)
+                }
+                case None =>
+              }
+            }
+          }
+          toOverride.foreach { x => controlMethodOverride(x) }
+          
+          /*toOverride match { // control if the method override another one
+            case Some(clSym) => {
+              clSym.methods.get(m.id.value) match {
+                case Some(mtdSym) => {
+                  if (mtdSym.params.keys.size != mSym.params.keys.size) { // the two methods must have the same number of arguments
                     error("A method can't override another with a different number of parameters.")
                   }
                   mSym.overridden = clSym.methods.get(m.id.value)
@@ -131,7 +159,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
               }
             }
             case None =>
-          }
+          }*/
           
           // Add the method to the ClassSymbol corresponding: 
           global.classes(c.id.value).methods = global.classes(c.id.value).methods + (m.id.value -> mSym)
@@ -145,14 +173,23 @@ object NameAnalysis extends Pipeline[Program, Program] {
             error("Two variables of one class can't have the same name.")
           }
           // Verify that a variable has not the same name has a variable inside an inherited class:
-          toOverride match {
+          def controlVariableOverride(toOverride: Option[ClassSymbol]) = toOverride match {
+            case None =>
+            case Some(clSym) => {
+              if (clSym.members.contains(v.id.value)) {
+                error("A variable can't have the same name as a variable inside an inherited class.")
+              }
+            }
+          }
+          toOverride.foreach { x => controlVariableOverride(x) }
+         /* toOverride match {
             case Some(clSym) => {
               if (clSym.members.contains(v.id.value)) {
                 error("A variable can't have the same name as a variable inside an inherited class.")
               }
             }
             case None => 
-          }
+          }*/
           // Add the variable to the ClassSymbol corresponding: 
           global.classes(c.id.value).members = global.classes(c.id.value).members + (v.id.value -> vSym)
         }
@@ -283,7 +320,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
           m.args.foreach(setESymbols(_))
         }
         case Variable(id) => setISymbol(id)
-        case t: This => { //  case class This() extends ExprTree with Symbolic[ClassSymbol]
+        case t: This => { 
           // TODO faire attention pas de this dans Main 
           t.setSymbol(ms.get.classSymbol)
         }
