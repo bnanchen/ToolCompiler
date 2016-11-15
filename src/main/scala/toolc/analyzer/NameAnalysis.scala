@@ -23,7 +23,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
       for (c <- prog.classes) {
         // verify
         if (global.classes.contains(c.id.value)) {
-          error("At least two classes have the same name.")
+          error("Two classes can't have the same name.")
         } else if (c.id.value == "Object") {
             error("No classes can't be named 'Object'.")
           } else if (c.id.value == prog.main.id.value) {
@@ -82,14 +82,15 @@ object NameAnalysis extends Pipeline[Program, Program] {
         
         //case class ClassDecl(id: Identifier, parent: Option[Identifier], vars: List[VarDecl], methods: List[MethodDecl])
         // je dois ajouter aux ClassSymbol de global.classes
-        
         // first the parents
         val toOverride: Option[ClassSymbol] = {
           c.parent match {
-            case Some(p) => global.classes.get(p.value) // toOverride is the ClassSymbol of the parent if it exists
+            case Some(cl) => {
+              collectInClass(prog.classes.filter{ (x: ClassDecl) => (x.id.value==cl.value) }(0)) // I'm sure because 2 classes can't have same name
+              global.classes.get(cl.value) // toOverride is the ClassSymbol of the parent if it exists
+            }
             case None => None
         }}
-       
         // first I collect the methods of the class:
         for (m <- c.methods) {
           val mSym = new MethodSymbol(m.id.value, global.classes(c.id.value)).setPos(m) 
@@ -277,14 +278,8 @@ object NameAnalysis extends Pipeline[Program, Program] {
           setESymbols(index)
         }
         case ArrayLength(arr) => setESymbols(arr)
-        case m: MethodCall/*(obj, meth, args)*/ => {  // MethodCall(obj: ExprTree, meth: Identifier, args: List[ExprTree])
+        case m: MethodCall => {  
           setESymbols(m.obj)
-          //setISymbol(meth) // TODO
-          //val clSymMap: List[MethodSymbol] = gs.classes.flatMap{(x:(String, ClassSymbol)) => x._2.lookupMethod(m.meth.value)}.toList
-          //println(clSymMap.size)
-          //m.meth.setSymbol(clSymMap(0))
-          //val a = clSymMap.filter{ (_, y:ClassSymbol) => (y.methods.contains(meth.value)) }
-//          gs.classes.map{ (x: String, y: ClassSymbol) => (y.methods) }
           m.args.foreach(setESymbols(_))
         }
         case Variable(id) => setISymbol(id)
