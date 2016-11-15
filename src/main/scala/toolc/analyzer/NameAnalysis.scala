@@ -27,7 +27,9 @@ object NameAnalysis extends Pipeline[Program, Program] {
         } else if (c.id.value == "Object") {
             error("No classes can't be named 'Object'.")
           } else if (c.id.value == prog.main.id.value) {
-            error("A class can't have the same name as the Main classe.")
+            error("A class can't have the same name as the Main Object.")
+          } else if (prog.main.id.value == "Object") {
+            error("The Main Object can't be named 'Object'")
           }
           val clSym = new ClassSymbol(c.id.value).setPos(c) 
           c.setSymbol(clSym)
@@ -199,7 +201,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
     }
 
     def setPSymbols(prog: Program, gs: GlobalScope): Unit = {
-      // TODO: Traverse within each definition of the program
+      //       Traverse within each definition of the program
       //       and attach symbols to Identifiers and "this"
       prog.classes.foreach(setCSymbols(_,gs))
       prog.main.id.setSymbol(gs.mainClass)
@@ -322,13 +324,16 @@ object NameAnalysis extends Pipeline[Program, Program] {
         case Variable(id) => setISymbol(id)
         case t: This => { 
           // TODO faire attention pas de this dans Main 
+          if (ms == None) {
+            error("There can't have a 'this' inside the Main method.")
+          }
           t.setSymbol(ms.get.classSymbol)
         }
         case NewIntArray(size) => setESymbols(size)
         case n: New => { 
           gs.classes.get(n.tpe.value) match {
             case Some(c) => n.tpe.setSymbol(c)
-            case None => // TODO: y mettre quelques chose?
+            case None => 
           }
         }
         case Not(expr) => setESymbols(expr)
@@ -341,7 +346,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
         case c: ClassType => {
           gs.classes.get(c.id.value) match {
             case Some(cl) => { 
-              c.id.setSymbol(cl) // TODO: juste?
+              c.id.setSymbol(cl) 
             }
             case None => 
           }
