@@ -31,6 +31,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
           }
           val clSym = new ClassSymbol(c.id.value).setPos(c) 
           c.setSymbol(clSym)
+          c.id.setSymbol(clSym)
           global.classes = global.classes.+((c.id.value, clSym))
         }
       }
@@ -170,6 +171,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
     def setCSymbols(klass: ClassDecl, gs: GlobalScope): Unit = {
       val classSym = gs.lookupClass(klass.id.value).get
       for (varDecl <- klass.vars) {
+        varDecl.id.setSymbol(classSym.lookupVar(varDecl.id.value).get) // ajouté par moi
         setTypeSymbol(varDecl.tpe, gs)
       }
        
@@ -178,16 +180,20 @@ object NameAnalysis extends Pipeline[Program, Program] {
 
     def setMSymbols(meth: MethodDecl, gs: GlobalScope, cs: ClassSymbol): Unit = {
       val methodSym = cs.lookupMethod(meth.id.value).get
+      meth.setSymbol(methodSym)
+      meth.id.setSymbol(methodSym)
       for (varDecl <- meth.vars) {
+        varDecl.id.setSymbol(methodSym.lookupVar(varDecl.id.value).get) // ajouté par moi
         setTypeSymbol(varDecl.tpe, gs)
       }
       for (args <- meth.args) {
+        // TODO: faire aussi un setSymbol??
         setTypeSymbol(args.tpe, gs)
       }
       setESymbols(meth.retExpr)(gs, Some(methodSym))
       setTypeSymbol(meth.retType, gs)
       meth.stats.foreach(setSSymbols(_)(gs, Some(methodSym)))
-      // TODO: quand est-ce que je fixe le symbol des déclaraions de classes et de méthodes
+      // TODO: quand est-ce que je fixe le symbol des déclaraions de classes et de méthodes?
     }
 
     def setSSymbols(stat: StatTree)(implicit gs: GlobalScope, ms: Option[MethodSymbol]): Unit = {
@@ -223,7 +229,6 @@ object NameAnalysis extends Pipeline[Program, Program] {
 
     def setISymbol(id: Identifier)(implicit ms: Option[MethodSymbol]) = {
       // in this context, it will always be an expression (variable)
-      println(id.value)
       ms.flatMap(_.lookupVar(id.value)) match { 
         case None =>
           error("Undeclared identifier: " + id.value + ".", id)
@@ -310,7 +315,6 @@ object NameAnalysis extends Pipeline[Program, Program] {
           //setISymbol(id)(None) 
           //gs.classes.get(id.value)
         }
-        case i: IntType =>  // TODO comment je fais aucun moyen de savoir dans quelle classe je me trouve
         case _ => 
       }
     }
