@@ -80,20 +80,8 @@ object NameAnalysis extends Pipeline[Program, Program] {
       def collectInClass(c: ClassDecl): Unit = {
         //       Traverse a class to collect symbols and emit errors
         //       in case a correctness rule of Tool is violated
-        // Note: It is important that you analyze parent classes first (Why?)
-        
-        //case class ClassDecl(id: Identifier, parent: Option[Identifier], vars: List[VarDecl], methods: List[MethodDecl])
-        // je dois ajouter aux ClassSymbol de global.classes
+        // Note: It is important that you analyze parent classes first 
         // first the parents
-       /* val toOverride: Option[ClassSymbol] = {
-          c.parent match {
-            case Some(cl) => {
-              collectInClass(prog.classes.filter{ (x: ClassDecl) => (x.id.value==cl.value) }(0)) // I'm sure because 2 classes can't have same name
-              global.classes.get(cl.value) // toOverride is the ClassSymbol of the parent if it exists
-            }
-            case None => None
-        }}*/
-        
         def acc(klass: Option[Identifier]): List[Option[ClassSymbol]] = klass match {
           case Some(cl) => {
             val classDec = prog.classes.filter{ (x: ClassDecl) => (x.id.value==cl.value) }(0)
@@ -109,7 +97,6 @@ object NameAnalysis extends Pipeline[Program, Program] {
           val mSym = new MethodSymbol(m.id.value, global.classes(c.id.value)).setPos(m) 
           
           for (p <- m.vars) {
-            // rien ici est ajouté 
             mSym.members = mSym.members + (p.id.value -> new VariableSymbol(p.id.value).setPos(p))
             // verify that two members have not the same name
             if (m.vars.filter { x => (x.id.value==p.id.value)}.size != 1) {
@@ -131,7 +118,6 @@ object NameAnalysis extends Pipeline[Program, Program] {
             error("In a method, two parameters/local variables can't have the same name.")
           }
           
-          
           def controlMethodOverride(toOverride: Option[ClassSymbol]) = toOverride match {
             case None => 
             case Some(clSym) => {
@@ -147,21 +133,6 @@ object NameAnalysis extends Pipeline[Program, Program] {
             }
           }
           toOverride.foreach { x => controlMethodOverride(x) }
-          
-          /*toOverride match { // control if the method override another one
-            case Some(clSym) => {
-              clSym.methods.get(m.id.value) match {
-                case Some(mtdSym) => {
-                  if (mtdSym.params.keys.size != mSym.params.keys.size) { // the two methods must have the same number of arguments
-                    error("A method can't override another with a different number of parameters.")
-                  }
-                  mSym.overridden = clSym.methods.get(m.id.value)
-                }
-                case None => 
-              }
-            }
-            case None =>
-          }*/
           
           // Add the method to the ClassSymbol corresponding: 
           global.classes(c.id.value).methods = global.classes(c.id.value).methods + (m.id.value -> mSym)
@@ -184,14 +155,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
             }
           }
           toOverride.foreach { x => controlVariableOverride(x) }
-         /* toOverride match {
-            case Some(clSym) => {
-              if (clSym.members.contains(v.id.value)) {
-                error("A variable can't have the same name as a variable inside an inherited class.")
-              }
-            }
-            case None => 
-          }*/
+          
           // Add the variable to the ClassSymbol corresponding: 
           global.classes(c.id.value).members = global.classes(c.id.value).members + (v.id.value -> vSym)
         }
@@ -323,10 +287,6 @@ object NameAnalysis extends Pipeline[Program, Program] {
         }
         case Variable(id) => setISymbol(id)
         case t: This => { 
-          // TODO faire attention pas de this dans Main 
-          if (ms == None) {
-            error("There can't have a 'this' inside the Main method.")
-          }
           t.setSymbol(ms.get.classSymbol)
         }
         case NewIntArray(size) => setESymbols(size)
@@ -350,8 +310,6 @@ object NameAnalysis extends Pipeline[Program, Program] {
             }
             case None => 
           }
-          //setISymbol(id)(None) 
-          //gs.classes.get(id.value)
         }
         case _ => 
       }
