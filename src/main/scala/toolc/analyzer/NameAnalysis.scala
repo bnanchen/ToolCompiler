@@ -11,7 +11,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
     import ctx.reporter._
 
     def collectSymbols(prog: Program): GlobalScope = {
-
+      
       val global = new GlobalScope
 
       val mcSym = new MainSymbol(prog.main.id.value)
@@ -19,17 +19,19 @@ object NameAnalysis extends Pipeline[Program, Program] {
       prog.main.setSymbol(mcSym)
       prog.main.id.setSymbol(mcSym)
        
-      // TODO: Create empty symbols for all classes, checking that their names are unique
+      // Create empty symbols for all classes, checking that their names are unique
       for (c <- prog.classes) {
+        // verify
         if (global.classes.contains(c.id.value)) {
           error("At least two classes have the same name.")
         } else {
-          // throwing error:
+          // verify
           if (c.id.value == "Object") {
             error("No classes can't be named 'Object'.")
           }
-          val cl = new ClassSymbol(c.id.value)
-          global.classes.+((c.id.value, cl)) // pas sûr sûr!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+          val clSym = new ClassSymbol(c.id.value).setPos(c) 
+          c.setSymbol(clSym)
+          global.classes = global.classes.+((c.id.value, clSym))
         }
       }
 
@@ -50,8 +52,8 @@ object NameAnalysis extends Pipeline[Program, Program] {
 
       // Check there are no cycles in the inheritance graph
       prog.classes foreach { cls =>
-        val clsSym = cls.getSymbol
-
+        val clsSym = cls.getSymbol 
+        
         def mkChain(curr: ClassSymbol): List[ClassSymbol] = {
           curr.parent match {
             case None => List(curr)
@@ -73,7 +75,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
       prog.classes.foreach(collectInClass)
 
       def collectInClass(c: ClassDecl): Unit = {
-        // TODO: Traverse a class to collect symbols and emit errors
+        //       Traverse a class to collect symbols and emit errors
         //       in case a correctness rule of Tool is violated
         // Note: It is important that you analyze parent classes first (Why?)
         
@@ -89,10 +91,11 @@ object NameAnalysis extends Pipeline[Program, Program] {
        
         // first I collect the methods of the class:
         for (m <- c.methods) {
-          val mSym = new MethodSymbol(m.id.value, global.classes(m.id.value)).setPos(m)
+          val mSym = new MethodSymbol(m.id.value, global.classes(c.id.value)).setPos(m) 
           
           for (p <- m.vars) {
-            mSym.members += (p.id.value -> new VariableSymbol(p.id.value).setPos(p))
+            // rien ici est ajouté 
+            mSym.members = mSym.members + (p.id.value -> new VariableSymbol(p.id.value).setPos(p))
             // verify that two members have not the same name
             if (m.vars.filter { x => (x.id.value==p.id.value)}.size != 1) {
               error("Two members of one method can't have the same name.")
@@ -101,7 +104,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
           
           for (a <- m.args) {
             val aSym = new VariableSymbol(a.id.value).setPos(a)
-            mSym.params += (a.id.value -> aSym)
+            mSym.params = mSym.params + (a.id.value -> aSym)
             mSym.argList = mSym.argList :+ aSym
             // verify that two arguments have note the same name
             if (m.args.filter { x => (x.id.value==a.id.value) }.size != 1) {
@@ -109,7 +112,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
             }
           }
           // verify 
-          if (m.args.map{ x => x.id.value }.intersect(m.vars.map{ x => x.id.value }) != 0) {
+          if (m.args.map{ x => x.id.value }.intersect(m.vars.map{ x => x.id.value }).size != 0) {
             error("In a method, two parameters/local variables can't have the same name.")
           }
           
@@ -129,7 +132,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
           }
           
           // Add the method to the ClassSymbol corresponding: 
-          global.classes(c.id.value).methods += (m.id.value -> mSym)
+          global.classes(c.id.value).methods = global.classes(c.id.value).methods + (m.id.value -> mSym)
         }
         
         // second the variables: 
@@ -149,18 +152,19 @@ object NameAnalysis extends Pipeline[Program, Program] {
             case None => 
           }
           // Add the variable to the ClassSymbol corresponding: 
-          global.classes(c.id.value).members += (v.id.value -> vSym)
+          global.classes(c.id.value).members = global.classes(c.id.value).members + (v.id.value -> vSym)
         }
       }
-     
+      
       global
     }
 
     def setPSymbols(prog: Program, gs: GlobalScope): Unit = {
       // TODO: Traverse within each definition of the program
       //       and attach symbols to Identifiers and "this"
-      prog.classes.map{ x => setCSymbols(x, gs)} 
-      
+      prog.classes.foreach(setCSymbols(_,gs))
+      prog.main.id.setSymbol(gs.mainClass)
+      prog.main.stats.foreach(setSSymbols(_)(gs, None))
     }
 
     def setCSymbols(klass: ClassDecl, gs: GlobalScope): Unit = {
@@ -168,7 +172,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
       for (varDecl <- klass.vars) {
         setTypeSymbol(varDecl.tpe, gs)
       }
-
+       
       klass.methods.foreach(setMSymbols(_, gs, classSym))
     }
 
@@ -177,23 +181,16 @@ object NameAnalysis extends Pipeline[Program, Program] {
       for (varDecl <- meth.vars) {
         setTypeSymbol(varDecl.tpe, gs)
       }
-//      class MethodDecl(id: Identifier,
-//                        args: List[Formal],
-//                        retType: TypeTree,
-//                        vars: List[VarDecl],
-//                        stats: List[StatTree],
-//                        retExpr: ExprTree)
       for (args <- meth.args) {
         setTypeSymbol(args.tpe, gs)
       }
       setESymbols(meth.retExpr)(gs, Some(methodSym))
       setTypeSymbol(meth.retType, gs)
       meth.stats.foreach(setSSymbols(_)(gs, Some(methodSym)))
-      
+      // TODO: quand est-ce que je fixe le symbol des déclaraions de classes et de méthodes
     }
 
     def setSSymbols(stat: StatTree)(implicit gs: GlobalScope, ms: Option[MethodSymbol]): Unit = {
-      
       stat match {
         case Block(stats) => stats.foreach(setSSymbols(_))
         case If(expr, thn, els) => {
@@ -226,7 +223,8 @@ object NameAnalysis extends Pipeline[Program, Program] {
 
     def setISymbol(id: Identifier)(implicit ms: Option[MethodSymbol]) = {
       // in this context, it will always be an expression (variable)
-      ms.flatMap(_.lookupVar(id.value)) match {
+      println(id.value)
+      ms.flatMap(_.lookupVar(id.value)) match { 
         case None =>
           error("Undeclared identifier: " + id.value + ".", id)
         case Some(sym) =>
@@ -235,7 +233,6 @@ object NameAnalysis extends Pipeline[Program, Program] {
     }
 
     def setESymbols(expr: ExprTree)(implicit gs: GlobalScope, ms: Option[MethodSymbol]): Unit = {
-      
       expr match {
         case And(lhs, rhs) => {
           setESymbols(lhs)
@@ -274,10 +271,15 @@ object NameAnalysis extends Pipeline[Program, Program] {
           setESymbols(index)
         }
         case ArrayLength(arr) => setESymbols(arr)
-        case MethodCall(obj, meth, args) => {
-          setESymbols(obj)
-          setISymbol(meth)
-          args.foreach(setESymbols(_))
+        case m: MethodCall/*(obj, meth, args)*/ => {  // MethodCall(obj: ExprTree, meth: Identifier, args: List[ExprTree])
+          setESymbols(m.obj)
+          //setISymbol(meth) // TODO
+          //val clSymMap: List[MethodSymbol] = gs.classes.flatMap{(x:(String, ClassSymbol)) => x._2.lookupMethod(m.meth.value)}.toList
+          //println(clSymMap.size)
+          //m.meth.setSymbol(clSymMap(0))
+          //val a = clSymMap.filter{ (_, y:ClassSymbol) => (y.methods.contains(meth.value)) }
+//          gs.classes.map{ (x: String, y: ClassSymbol) => (y.methods) }
+          m.args.foreach(setESymbols(_))
         }
         case Variable(id) => setISymbol(id)
         case t: This => { //  case class This() extends ExprTree with Symbolic[ClassSymbol]
@@ -285,17 +287,30 @@ object NameAnalysis extends Pipeline[Program, Program] {
           t.setSymbol(ms.get.classSymbol)
         }
         case NewIntArray(size) => setESymbols(size)
-        case New(tpe) => setISymbol(tpe)
+        case n: New => { 
+          gs.classes.get(n.tpe.value) match {
+            case Some(c) => n.tpe.setSymbol(c)
+            case None => // TODO: y mettre quelques chose?
+          }
+        }
         case Not(expr) => setESymbols(expr)
         case _ => 
       }
     }
 
     def setTypeSymbol(tpe: TypeTree, gs: GlobalScope): Unit = {
-      // Types
-//  case class ClassType(id: Identifier) extends TypeTree
       tpe match {
-        case ClassType(id) => setISymbol(id)(None) // TODO normalement rejette une erreur??
+        case c: ClassType => {
+          gs.classes.get(c.id.value) match {
+            case Some(cl) => { 
+              c.id.setSymbol(cl) // TODO: juste?
+            }
+            case None => 
+          }
+          //setISymbol(id)(None) 
+          //gs.classes.get(id.value)
+        }
+        case i: IntType =>  // TODO comment je fais aucun moyen de savoir dans quelle classe je me trouve
         case _ => 
       }
     }
