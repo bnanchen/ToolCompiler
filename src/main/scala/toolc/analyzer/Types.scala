@@ -39,7 +39,24 @@ object Types {
   }
   
   case class TClass(classSymbol: ClassSymbol) extends Type {
-    override def isSubTypeOf(tpe: Type): Boolean = ??? // TODO
+    override def isSubTypeOf(tpe: Type): Boolean = {
+      // TODO juste? 
+      tpe match {
+        case TClass(clSym) => {
+          if ((clSym.name == "Object") || (clSym.name == classSymbol.name)) { // All object types are subtypes of themselves and the special “Object” object type.
+            true 
+          } else {
+            // TODO Une subclasse est un subtype de la superclass?
+            classSymbol.parent match {
+              case Some(clSym) => true
+              case None => false
+            }
+          }
+        }
+        case _ => false
+      }
+      
+    }
     override def toString = classSymbol.name
   }
 

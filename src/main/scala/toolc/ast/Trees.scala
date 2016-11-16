@@ -90,7 +90,16 @@ object Trees {
   }
   // Arithmetic operators (Plus works on any combination of Int/String)
   case class Plus(lhs: ExprTree, rhs: ExprTree) extends ExprTree {
-    def getType = ??? // TODO
+    def getType = {
+      // TODO
+      (lhs.getType, rhs.getType) match {
+        case (TInt, TInt) => TInt
+        case (TString, TInt) => TString
+        case (TInt, TString) => TString
+        case (TString, TString) => TString
+        case _ => sys.error("The types of right hand side and left hand side of a Plus must be any combination of Int and String.")
+      }
+    }
   }
   case class Minus(lhs: ExprTree, rhs: ExprTree) extends ExprTree {
     val getType = TInt
@@ -123,7 +132,10 @@ object Trees {
     def getType = TClass(getSymbol)
   }
   case class MethodCall(obj: ExprTree, meth: Identifier, args: List[ExprTree]) extends ExprTree {
-    def getType = ??? // TODO
+    def getType = {
+      // TODO
+      ???
+    }
   }
   case class New(tpe: Identifier) extends ExprTree {
     def getType = tpe.getType match {
