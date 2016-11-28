@@ -95,9 +95,10 @@ object NameAnalysis extends Pipeline[Program, Program] {
         // first I collect the methods of the class:
         for (m <- c.methods) {
           val mSym = new MethodSymbol(m.id.value, global.classes(c.id.value)).setPos(m) 
-          
+          mSym.setType(m.retType.getType) // ajouté durant le labo Type Checking
           for (p <- m.vars) {
             mSym.members = mSym.members + (p.id.value -> new VariableSymbol(p.id.value).setPos(p))
+            mSym.members(p.id.value).setType(p.tpe.getType) // ajouté durant le labo Type Checking
             // verify that two members have not the same name
             if (m.vars.filter { x => (x.id.value==p.id.value)}.size != 1) {
               error("Two members of one method can't have the same name.")
@@ -106,6 +107,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
           
           for (a <- m.args) {
             val aSym = new VariableSymbol(a.id.value).setPos(a)
+            aSym.setType(a.tpe.getType) // ajouté durant le labo Type Checking
             mSym.params = mSym.params + (a.id.value -> aSym)
             mSym.argList = mSym.argList :+ aSym
             // verify that two arguments have note the same name
@@ -141,6 +143,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
         // second the variables: 
         for (v <- c.vars) {
           val vSym = new VariableSymbol(v.id.value).setPos(v)
+          vSym.setType(v.tpe.getType) // ajouté durant le labo Type Checking
           // Verify that two variables have not the same name
           if (c.vars.filter { x => (x.id.value==v.id.value) }.size != 1) {
             error("Two variables of one class can't have the same name.")
@@ -281,7 +284,18 @@ object NameAnalysis extends Pipeline[Program, Program] {
           setESymbols(index)
         }
         case ArrayLength(arr) => setESymbols(arr)
-        case m: MethodCall => {  
+        case m: MethodCall => {
+          // ajouté durant le labo Type Checking
+          m.obj.getType match {
+            case Types.TClass(clSy) => {
+              clSy.methods.get(m.meth.value) match {
+                case Some(s) => m.meth.setSymbol(s)
+                case None =>
+              }
+            }
+            case _ =>
+          }
+          m.meth.getSymbol.setType(m.getType) 
           setESymbols(m.obj)
           m.args.foreach(setESymbols(_))
         }

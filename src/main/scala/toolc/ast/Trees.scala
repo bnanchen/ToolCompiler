@@ -91,13 +91,15 @@ object Trees {
   // Arithmetic operators (Plus works on any combination of Int/String)
   case class Plus(lhs: ExprTree, rhs: ExprTree) extends ExprTree {
     def getType = {
-      // TODO
+      // TODO Done.
       (lhs.getType, rhs.getType) match {
         case (TInt, TInt) => TInt
         case (TString, TInt) => TString
         case (TInt, TString) => TString
         case (TString, TString) => TString
-        case _ => sys.error("The types of right hand side and left hand side of a Plus must be any combination of Int and String.")
+        case _ => 
+          sys.error("The types of right hand side and left hand side of a Plus must be any combination of Int and String.")
+          TError
       }
     }
   }
@@ -133,8 +135,47 @@ object Trees {
   }
   case class MethodCall(obj: ExprTree, meth: Identifier, args: List[ExprTree]) extends ExprTree {
     def getType = {
-      // TODO
-      ???
+      // TODO Done.
+      // 1. the expression on which the method is called must be of TClass
+      obj.getType match {
+        case TClass(clSym) => {
+          // 2. the class must declare the method meth
+          clSym.methods.get(meth.value) match {
+            case Some(mtdSym) => {
+              // 3. the number of arguments must be correct
+              if (mtdSym.argList.length == args.length) {
+                // 4. the arguments passed must be subtypes of the declared parameters
+                def verifyArg(expr: ExprTree, arg: Type): Boolean = {
+                  expr.getType match {
+                    case TClass(cSy) => expr.getType.isSubTypeOf(arg)
+                    case t: Type => (t.toString() == arg.toString())
+                  }
+                }
+                var i = 0
+                var listBool: List[Boolean] = Nil
+                while (i < args.length) {
+                  listBool = listBool :+ verifyArg(args(i), mtdSym.argList(i).getType)
+                  i += 1
+                }
+                if (!listBool.contains(false)) {
+                  // TODO est-ce correct?
+                  clSym.methods(meth.value).getType
+                } else {
+                  sys.error("The arguments passed must be subtypes of the declared parameters.")
+                  TError
+                }
+              } else {
+                sys.error("The number of arguments must be correct.")
+                TError
+              }
+            }
+            case _ => sys.error("The class must declare the method.")
+            TError
+          }
+        }
+        case _ => sys.error("The expression on which the method is called must be of an Object Type.")
+        TError
+      }
     }
   }
   case class New(tpe: Identifier) extends ExprTree {
