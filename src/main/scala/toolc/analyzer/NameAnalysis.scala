@@ -97,8 +97,10 @@ object NameAnalysis extends Pipeline[Program, Program] {
           val mSym = new MethodSymbol(m.id.value, global.classes(c.id.value)).setPos(m) 
           mSym.setType(m.retType.getType) // ajouté durant le labo Type Checking
           for (p <- m.vars) {
-            mSym.members = mSym.members + (p.id.value -> new VariableSymbol(p.id.value).setPos(p))
-            mSym.members(p.id.value).setType(p.tpe.getType) // ajouté durant le labo Type Checking
+            val varSym = new VariableSymbol(p.id.value)
+            varSym.setType(p.tpe.getType) // ajouté durant le labo Type Checking
+            mSym.members = mSym.members + (p.id.value -> varSym.setPos(p))
+           // mSym.members(p.id.value).setType(p.tpe.getType) // ajouté durant le labo Type Checking
             // verify that two members have not the same name
             if (m.vars.filter { x => (x.id.value==p.id.value)}.size != 1) {
               error("Two members of one method can't have the same name.")
@@ -286,18 +288,19 @@ object NameAnalysis extends Pipeline[Program, Program] {
         case ArrayLength(arr) => setESymbols(arr)
         case m: MethodCall => {
           // ajouté durant le labo Type Checking
+          setESymbols(m.obj)
+          m.args.foreach(setESymbols(_))
           m.obj.getType match {
             case Types.TClass(clSy) => {
               clSy.methods.get(m.meth.value) match {
-                case Some(s) => m.meth.setSymbol(s)
+                case Some(s) => 
+                  m.meth.setSymbol(s)
                 case None =>
               }
             }
-            case _ =>
+            case _ => 
           }
           m.meth.getSymbol.setType(m.getType) 
-          setESymbols(m.obj)
-          m.args.foreach(setESymbols(_))
         }
         case Variable(id) => setISymbol(id)
         case t: This => { 

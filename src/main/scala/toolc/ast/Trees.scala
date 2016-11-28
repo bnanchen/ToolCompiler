@@ -146,9 +146,11 @@ object Trees {
               if (mtdSym.argList.length == args.length) {
                 // 4. the arguments passed must be subtypes of the declared parameters
                 def verifyArg(expr: ExprTree, arg: Type): Boolean = {
-                  expr.getType match {
-                    case TClass(cSy) => expr.getType.isSubTypeOf(arg)
-                    case t: Type => (t.toString() == arg.toString())
+                  expr.getType match { // TODO getType incorrect
+                    case TClass(cSy) => 
+                      expr.getType.isSubTypeOf(arg)
+                    case t: Type => 
+                      (t.toString() == arg.toString())
                   }
                 }
                 var i = 0

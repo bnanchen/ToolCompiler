@@ -16,8 +16,8 @@ object Parser extends Pipeline[Iterator[Token], Program] {
   val toolGrammar = Grammar('Program, List[Rules[Token]](
     'Program ::= 'MainObject ~ 'ClassDecls ~ EOF(),
     'MainObject ::= PROGRAM() ~ 'Identifier ~ LBRACE() ~ 'Stmts ~ RBRACE(),
-    'Stmts ::= 'Statement ~ 'Stmts | epsilon(), 
-    'ClassDecls ::= 'ClassDeclaration ~ 'ClassDecls | epsilon(), 
+    'Stmts ::= 'Statement ~ 'Stmts | epsilon(),
+    'ClassDecls ::= 'ClassDeclaration ~ 'ClassDecls | epsilon(),
     'ClassDeclaration ::= CLASS() ~ 'Identifier ~ 'OptExtends ~ 'ClassBody,
     'OptExtends ::= epsilon() | EXTENDS() ~ 'Identifier,
     'ClassBody ::= LBRACE() ~ 'VarDecs ~ 'MethodDecs ~ RBRACE(),
@@ -59,105 +59,105 @@ object Parser extends Pipeline[Iterator[Token], Program] {
 
   // TODO: Transform this to an LL(1) grammar
   val ll1Grammar = Grammar('Program, List[Rules[Token]](
-      
-    'Program ::= 'MainObject ~ 'ClassDecls ~ EOF(), 
-    
+
+    'Program ::= 'MainObject ~ 'ClassDecls ~ EOF(),
+
     'MainObject ::= PROGRAM() ~ 'Identifier ~ LBRACE() ~ 'Stmts ~ RBRACE(),
-    
-    'Stmts ::= 'Statement ~ 'Stmts | epsilon(), 
-    
-    'ClassDecls ::= 'ClassDeclaration ~ 'ClassDecls | epsilon(), 
-    
+
+    'Stmts ::= 'Statement ~ 'Stmts | epsilon(),
+
+    'ClassDecls ::= 'ClassDeclaration ~ 'ClassDecls | epsilon(),
+
     'ClassDeclaration ::= CLASS() ~ 'Identifier ~ 'OptExtends ~ 'ClassBody,
-    
+
     'OptExtends ::= epsilon() | EXTENDS() ~ 'Identifier,
-    
+
     'ClassBody ::= LBRACE() ~ 'VarDecs ~ 'MethodDecs ~ RBRACE(),
-    
+
     'VarDecs ::= 'VarDeclaration ~ 'VarDecs | epsilon(),
-    
+
     'VarDeclaration ::= VAR() ~ 'Param ~ SEMICOLON(),
-    
+
     'MethodDecs ::= 'MethodDeclaration ~ 'MethodDecs | epsilon(),
-    
+
     'MethodDeclaration ::= DEF() ~ 'Identifier ~ LPAREN() ~ 'Params ~ RPAREN() ~ COLON() ~ 'Type ~ EQSIGN() ~ LBRACE() ~ 'VarDecs ~ 'Stmts ~ RETURN() ~ 'ExpressionOr ~ SEMICOLON() ~ RBRACE(),
-    
+
     'Params ::= epsilon() | 'Param ~ 'ParamList,
-    
+
     'ParamList ::= epsilon() | COMMA() ~ 'Param ~ 'ParamList,
-    
+
     'Param ::= 'Identifier ~ COLON() ~ 'Type,
-    
+
     'Type ::= INT() ~ 'TypeNextInt | BOOLEAN() | STRING() | 'Identifier, // first problématique
-    
+
     'TypeNextInt ::= epsilon() | LBRACKET() ~ RBRACKET(), // par moi
-    
+
     'Statement ::= IF() ~ LPAREN() ~ 'ExpressionOr ~ RPAREN() ~ 'MatchedIf ~ 'ElseOpt
       | 'SimpleStat,
-      
+
     'MatchedIf ::= IF() ~ LPAREN() ~ 'ExpressionOr ~ RPAREN() ~ 'MatchedIf ~ ELSE() ~ 'MatchedIf
       | 'SimpleStat,
-      
+
     'SimpleStat ::= LBRACE() ~ 'Stmts ~ RBRACE()
       | WHILE() ~ LPAREN() ~ 'ExpressionOr ~ RPAREN() ~ 'MatchedIf
       | PRINTLN() ~ LPAREN() ~ 'ExpressionOr ~ RPAREN() ~ SEMICOLON()
       | 'Identifier ~ 'IdStat
       | DO() ~ LPAREN() ~ 'ExpressionOr ~ RPAREN() ~ SEMICOLON(),
-      
+
     'IdStat ::= EQSIGN() ~ 'ExpressionOr ~ SEMICOLON()
       | LBRACKET() ~ 'ExpressionOr ~ RBRACKET() ~ EQSIGN() ~ 'ExpressionOr ~ SEMICOLON(),
-      
+
     'ElseOpt ::= ELSE() ~ 'Statement | epsilon(),
-    
+
     // On décompose tout pour faire respecter la precedence des opérations
     // on utilise la left factorization
-    
+
     'ExpressionOptional ::= 'ExpressionOr | epsilon(),
-    
+
     'ExpressionOr ::= 'ExpressionAnd ~ 'ExpressionOrNext, // d'abord le moins prioritaire, car on veut qu'il soit le plus haut dans l'arbre
-    
+
     'ExpressionOrNext ::= OR() ~ 'ExpressionOr | epsilon(), //Expr peut être toute une suite d'opérations, d'abord le least prioritaire
-    
+
     'ExpressionAnd ::= 'ExpressionEquLessThan ~ 'ExpressionAndNext,
-    
+
     'ExpressionAndNext ::= AND() ~ 'ExpressionAnd | epsilon(),
-    
+
     'ExpressionEquLessThan ::= 'ExpressionPlusMinus ~ 'ExpressionEquLessThanNext,
-    
+
     'ExpressionEquLessThanNext ::= EQUALS() ~ 'ExpressionEquLessThan | LESSTHAN() ~ 'ExpressionEquLessThan | epsilon(), // à cause de la precedence des operations
-    
+
     'ExpressionPlusMinus ::= 'ExpressionDivTimes ~ 'ExpressionPlusMinusNext, // à cause de la precedence des operations
-    
+
     'ExpressionPlusMinusNext ::= MINUS() ~ 'ExpressionPlusMinus | PLUS() ~ 'ExpressionPlusMinus | epsilon(),
-    
+
     'ExpressionDivTimes ::= 'ExpressionBang ~ 'ExpressionDivTimesNext, // à cause de la precedence des operations
-    
+
     'ExpressionDivTimesNext ::= DIV() ~ 'ExpressionDivTimes | TIMES() ~ 'ExpressionDivTimes | epsilon(),
-    
+
     'ExpressionBang ::= BANG() ~ 'ExpressionBracket | 'ExpressionBracket, // soit il y a un bang devant, soit il y en a pas.
-    
+
     'ExpressionBracket ::= 'ExpressionDot ~ 'ExpressionBracketNext,
-    
+
     'ExpressionBracketNext ::= LBRACKET() ~ 'ExpressionOr ~ RBRACKET() | epsilon(), // on peut enlever ExpressionOptional car gérer dans le cas du 'ExpressionNewFollow
-    
+
     'ExpressionDot ::= 'ExpressionNew ~ 'ExpressionDotNext,
 
-    'ExpressionDotNext ::= DOT() ~ 'ExpressionDotNextFollow | epsilon(), 
-    
-    'ExpressionDotNextFollow ::= 'Identifier ~ LPAREN() ~ 'Args ~ RPAREN() ~ 'ExpressionDotNext | LENGTH(), //'ExpressionDot 
-    
-    'ExpressionNew ::= 'ExpressionNewNext | 'ExpressionFinal, 
- 
+    'ExpressionDotNext ::= DOT() ~ 'ExpressionDotNextFollow | epsilon(),
+
+    'ExpressionDotNextFollow ::= 'Identifier ~ LPAREN() ~ 'Args ~ RPAREN() ~ 'ExpressionDotNext | LENGTH(), //'ExpressionDot
+
+    'ExpressionNew ::= 'ExpressionNewNext | 'ExpressionFinal,
+
     'ExpressionNewNext ::= NEW() ~ 'ExpressionNewFollow,
-    
-    'ExpressionNewFollow ::= INT() ~ LBRACKET() ~ 'ExpressionOr ~ RBRACKET() | 'Identifier ~ LPAREN()  ~ RPAREN(), 
-        
+
+    'ExpressionNewFollow ::= INT() ~ LBRACKET() ~ 'ExpressionOr ~ RBRACKET() | 'Identifier ~ LPAREN()  ~ RPAREN(),
+
     'ExpressionFinal ::= TRUE() | FALSE() | LPAREN() ~ 'ExpressionOr ~ RPAREN() | THIS() | 'Identifier | STRINGLITSENT | INTLITSENT,
-     
+
     'Args ::= epsilon() | 'ExpressionOr ~ 'ExprList,
-    
+
     'ExprList ::= COMMA() ~ 'ExpressionOr ~ 'ExprList | epsilon(),
-    
+
     'Identifier ::= IDSENT
   ))
 

@@ -86,9 +86,9 @@ object TypeChecking extends Pipeline[Program, Program] {
           tcExpr(size, TInt)
         case m: MethodCall => {
           // TODO JUSTE??
-          m.getType // usefule car peut-être appelé dessous...voir Cédric!
-          tcExpr(m.obj)
-          m.args.foreach { x => tcExpr(x) }
+          m.getType // useful car peut-être appelé dessous...voir Cédric!
+          tcExpr(m.obj, m.obj.getType)
+          m.args.foreach { x => tcExpr(x, x.getType) }
         }
         case _ => 
       }
@@ -122,7 +122,7 @@ object TypeChecking extends Pipeline[Program, Program] {
           if (!(expr.getType.isSubTypeOf(id.getType))) {
             sys.error("Assignment of an expression of type T can only be done to a variable of type S such that T <: S.")
           }
-          tcExpr(expr, TBoolean, TString, TInt, TObject) // TODO comment tu fais quand tu veux envoyer TClass dans tcExpr??
+          tcExpr(expr, TBoolean, TString, TInt, TObject, TIntArray) 
         }
         case ArrayAssign(id, index, expr) => {
          if (id.getType != TIntArray) {
