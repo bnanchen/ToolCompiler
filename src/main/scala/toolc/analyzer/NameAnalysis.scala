@@ -133,7 +133,9 @@ object NameAnalysis extends Pipeline[Program, Program] {
           if (m.args.map{ x => x.id.value }.intersect(m.vars.map{ x => x.id.value }).size != 0) {
             error("In a method, two parameters/local variables can't have the same name.")
           }
-          
+          // set the type of the return therefore of the method
+          setTypeSymbol(m.retType, global)
+          mSym.setType(m.retType.getType) // ajouté durant le labo Type Checking // TODO PROBLEME!!!!!!!!!
           def controlMethodOverride(toOverride: Option[ClassSymbol]) = toOverride match {
             case None => 
             case Some(clSym) => {
@@ -142,6 +144,18 @@ object NameAnalysis extends Pipeline[Program, Program] {
                   if (mtdSym.params.keys.size != mSym.params.keys.size) { // the two methods must have the same number of arguments
                     error("A method can't override another with a different number of parameters.")
                   }
+                  if (m.retType.getType.toString() != mtdSym.getType.toString()) {
+                    error("A method that overrides another needs to have the same return type.")
+                  }
+                  var i = 0
+                  var listBool: List[Boolean] = Nil
+                  while (i < mtdSym.argList.length) {
+                    listBool = listBool :+ (mSym.argList(i).getType.isSubTypeOf(mtdSym.argList(i).getType))
+                    i += 1
+                  }
+                  if (listBool.contains(false)) {
+                    error("All the arguments of a method that overrides another one need to be subtype of the arguments of the overriden one.")
+                  }
                   mSym.overridden = clSym.methods.get(m.id.value)
                 }
                 case None =>
@@ -149,13 +163,11 @@ object NameAnalysis extends Pipeline[Program, Program] {
             }
           }
           toOverride.foreach { x => controlMethodOverride(x) }
-
+            
           // Add the method to the ClassSymbol corresponding:
-          setTypeSymbol(m.retType, global)
-          mSym.setType(m.retType.getType) // ajouté durant le labo Type Checking // TODO PROBLEME!!!!!!!!!
           global.classes(c.id.value).methods = global.classes(c.id.value).methods + (m.id.value -> mSym)
         }
-        // TODO peut-être mettre les variables avant les méthodes????????????
+        
         // second the variables: 
         for (v <- c.vars) {
           setTypeSymbol(v.tpe, global)

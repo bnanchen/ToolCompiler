@@ -159,6 +159,7 @@ object Trees {
                   listBool = listBool :+ verifyArg(args(i), mtdSym.argList(i).getType)
                   i += 1
                 }
+                
                 if (!listBool.contains(false)) {
                   // TODO est-ce correct?
                   clSym.methods(meth.value).getType
