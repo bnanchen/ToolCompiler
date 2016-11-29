@@ -43,7 +43,7 @@ object Trees {
                         vars: List[VarDecl],
                         stats: List[StatTree],
                         retExpr: ExprTree)
-    extends DefTree with Symbolic[MethodSymbol]
+      extends DefTree with Symbolic[MethodSymbol]
   case class Formal(tpe: TypeTree, id: Identifier)
     extends DefTree with Symbolic[VariableSymbol]
 
@@ -93,12 +93,12 @@ object Trees {
     def getType = {
       // TODO Done.
       (lhs.getType, rhs.getType) match {
-        case (TInt, TInt) => TInt
-        case (TString, TInt) => TString
-        case (TInt, TString) => TString
+        case (TInt, TInt)       => TInt
+        case (TString, TInt)    => TString
+        case (TInt, TString)    => TString
         case (TString, TString) => TString
-        case _ => 
-          sys.error("The types of right hand side: "+ lhs.getType +" and left hand side: "+ rhs.getType +" of a Plus must be any combination of Int and String.")
+        case _ =>
+          sys.error("The types of right hand side: " + lhs.getType + " and left hand side: " + rhs.getType + " of a Plus must be any combination of Int and String.")
           TError
       }
     }
@@ -140,16 +140,16 @@ object Trees {
       obj.getType match {
         case TClass(clSym) => {
           // 2. the class must declare the method meth
-          clSym.methods.get(meth.value) match {
+          clSym.lookupMethod(meth.value) match {
             case Some(mtdSym) => {
               // 3. the number of arguments must be correct
               if (mtdSym.argList.length == args.length) {
                 // 4. the arguments passed must be subtypes of the declared parameters
                 def verifyArg(expr: ExprTree, arg: Type): Boolean = {
                   expr.getType match { // TODO getType incorrect
-                    case TClass(cSy) => 
+                    case TClass(cSy) =>
                       expr.getType.isSubTypeOf(arg)
-                    case t: Type => 
+                    case t: Type =>
                       (t.toString() == arg.toString())
                   }
                 }
@@ -159,7 +159,7 @@ object Trees {
                   listBool = listBool :+ verifyArg(args(i), mtdSym.argList(i).getType)
                   i += 1
                 }
-                
+
                 if (!listBool.contains(false)) {
                   // TODO est-ce correct?
                   clSym.methods(meth.value).getType
@@ -168,23 +168,25 @@ object Trees {
                   TError
                 }
               } else {
-                sys.error("The number of arguments "+ args.length +" must be correct "+ mtdSym.argList.length +".")
+                sys.error("The number of arguments " + args.length + " must be correct " + mtdSym.argList.length + ".")
                 TError
               }
             }
-            case _ => sys.error("The class must declare the method: "+ meth.value +".")
-            TError
+            case _ =>
+              sys.error("The class must declare the method: " + meth.value + ".")
+              TError
           }
         }
-        case _ => sys.error("The expression on which the method is called must be of an Object Type and not of type: "+ obj.getType +".")
-        TError
+        case _ =>
+          sys.error("The expression on which the method is called must be of an Object Type and not of type: " + obj.getType + ".")
+          TError
       }
     }
   }
   case class New(tpe: Identifier) extends ExprTree {
     def getType = tpe.getType match {
-      case t@TClass(_) => t
-      case other => TError
+      case t @ TClass(_) => t
+      case other         => TError
     }
   }
   // Literals
