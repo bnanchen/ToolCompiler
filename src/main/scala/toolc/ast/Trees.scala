@@ -98,7 +98,7 @@ object Trees {
         case (TInt, TString) => TString
         case (TString, TString) => TString
         case _ => 
-          sys.error("The types of right hand side and left hand side of a Plus must be any combination of Int and String.")
+          sys.error("The types of right hand side: "+ lhs.getType +" and left hand side: "+ rhs.getType +" of a Plus must be any combination of Int and String.")
           TError
       }
     }
@@ -168,15 +168,15 @@ object Trees {
                   TError
                 }
               } else {
-                sys.error("The number of arguments must be correct.")
+                sys.error("The number of arguments "+ args.length +" must be correct "+ mtdSym.argList.length +".")
                 TError
               }
             }
-            case _ => sys.error("The class must declare the method.")
+            case _ => sys.error("The class must declare the method: "+ meth.value +".")
             TError
           }
         }
-        case _ => sys.error("The expression on which the method is called must be of an Object Type.")
+        case _ => sys.error("The expression on which the method is called must be of an Object Type and not of type: "+ obj.getType +".")
         TError
       }
     }

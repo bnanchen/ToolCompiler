@@ -21,7 +21,7 @@ object TypeChecking extends Pipeline[Program, Program] {
       meth.stats.foreach { x => tcStat(x) }
       tcExpr(meth.retExpr, meth.retType.getType)
       if (!(meth.retExpr.getType.isSubTypeOf(meth.retType.getType))) {
-        sys.error("The returned expression must be of a subtype of the declared return type.")
+        sys.error("The returned expression type:"+ meth.retType.getType +" must be a subtype of the declared return type.")
       }
     }
 
@@ -41,7 +41,7 @@ object TypeChecking extends Pipeline[Program, Program] {
           tcExpr(expr, TBoolean)
         case p: Plus => 
           // TODO JUSTE??
-          p.getType // useful??
+         // p.getType // useful??
           tcExpr(p.lhs, TInt, TString)
           tcExpr(p.rhs, TInt, TString)
         case Minus(lhs, rhs) => 
@@ -74,9 +74,9 @@ object TypeChecking extends Pipeline[Program, Program] {
               tcExpr(lhs, TObject)
               tcExpr(rhs, TObject)
             case _ => 
-              sys.error("The right and left handsides either belong to class types or are of the same type (Int, String, Boolean, Int[]).")
+              sys.error("The right: "+ rhs.getType +" and left handsides: "+ lhs.getType +" either belong to class types or are of the same type (Int, String, Boolean, Int[]).")
           }
-        }
+        } 
         case ArrayRead(arr, index) =>
           tcExpr(arr, TIntArray)
           tcExpr(index, TInt)
@@ -86,7 +86,7 @@ object TypeChecking extends Pipeline[Program, Program] {
           tcExpr(size, TInt)
         case m: MethodCall => {
           // TODO JUSTE??
-          m.getType // useful car peut-être appelé dessous...voir Cédric!
+         // m.getType // useful car peut-être appelé dessous...voir Cédric!
           tcExpr(m.obj, m.obj.getType)
           m.args.foreach { x => tcExpr(x, x.getType) }
         }
@@ -120,13 +120,13 @@ object TypeChecking extends Pipeline[Program, Program] {
           tcExpr(expr, TInt, TString, TBoolean)
         case Assign(id, expr) => {
           if (!(expr.getType.isSubTypeOf(id.getType))) {
-            sys.error("Assignment of an expression of type T can only be done to a variable of type S such that T <: S.")
+            sys.error("Assignment of an expression of type T can only be done to a variable of type S such that T <: S. Here: "+ expr.getType +" <: "+ id.getType +".")
           }
           tcExpr(expr, TBoolean, TString, TInt, TObject, TIntArray) 
         }
         case ArrayAssign(id, index, expr) => {
          if (id.getType != TIntArray) {
-           sys.error("Assignment to array elements can only be done through an array variable.")
+           sys.error("Assignment to array elements can only be done through an array variable. Here:"+ id.getType +".")
          }
          tcExpr(index, TInt)
          tcExpr(expr, TInt)

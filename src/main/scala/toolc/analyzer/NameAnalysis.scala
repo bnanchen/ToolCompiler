@@ -97,16 +97,6 @@ object NameAnalysis extends Pipeline[Program, Program] {
         for (m <- c.methods) {
           val mSym = new MethodSymbol(m.id.value, global.classes(c.id.value)).setPos(m) 
           for (p <- m.vars) {
-            /*
-            p.tpe match {
-              case ClassType(id) => { // TODO correct cette merde?
-                val vSy = new VariableSymbol(id.value)
-                vSy.setType(Types.TObject)
-                id.setSymbol(vSy.setPos(id))
-                
-              }
-              case _ =>
-            }*/
             setTypeSymbol(p.tpe, global)
             val varSym = new VariableSymbol(p.id.value)
             varSym.setType(p.tpe.getType) // ajouté durant le labo Type Checking // TODO problème getType
@@ -164,6 +154,10 @@ object NameAnalysis extends Pipeline[Program, Program] {
           }
           toOverride.foreach { x => controlMethodOverride(x) }
             
+          // BEGIN 
+          m.id.setSymbol(mSym)
+          m.setSymbol(mSym)
+          // END
           // Add the method to the ClassSymbol corresponding:
           global.classes(c.id.value).methods = global.classes(c.id.value).methods + (m.id.value -> mSym)
         }
@@ -173,6 +167,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
           setTypeSymbol(v.tpe, global)
           val vSym = new VariableSymbol(v.id.value).setPos(v)
           vSym.setType(v.tpe.getType) // ajouté durant le labo Type Checking
+          //v.setSymbol(vSym) // TODO
           // Verify that two variables have not the same name
           if (c.vars.filter { x => (x.id.value==v.id.value) }.size != 1) {
             error("Two variables of one class can't have the same name.")
@@ -315,12 +310,12 @@ object NameAnalysis extends Pipeline[Program, Program] {
         }
         case ArrayLength(arr) => setESymbols(arr)
         case m: MethodCall => {
-          // ajouté durant le labo Type Checking
+          // ajouté durant le labo Type Checking:
           setESymbols(m.obj)
           m.args.foreach(setESymbols(_))
           m.obj.getType match {
             case Types.TClass(clSy) => {
-              clSy.methods.get(m.meth.value) match {
+              clSy.lookupMethod(m.meth.value) match { // clSy.methods.get(m.meth.value)
                 case Some(s) => 
                   m.meth.setSymbol(s)
                 case None =>
@@ -328,7 +323,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
             }
             case _ => 
           }
-          m.meth.getSymbol.setType(m.getType) 
+          m.meth.getSymbol.setType(m.getType) // TODO TEST 60, 93, 105: problème à cette ligne, getSymbol: Accessing undefined symbol.
         }
         case Variable(id) => setISymbol(id)
         case t: This => { 
