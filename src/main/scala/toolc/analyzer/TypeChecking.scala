@@ -17,7 +17,6 @@ object TypeChecking extends Pipeline[Program, Program] {
 
     /** Type checks statements and return expression of the method */
     def tcMethod(meth: MethodDecl): Unit = {
-      // TODO Done.
       meth.stats.foreach { x => tcStat(x) }
       tcExpr(meth.retExpr, meth.retType.getType)
       if (!(meth.retExpr.getType.isSubTypeOf(meth.retType.getType))) {
@@ -40,8 +39,6 @@ object TypeChecking extends Pipeline[Program, Program] {
         case Not(expr) =>
           tcExpr(expr, TBoolean)
         case p: Plus => 
-          // TODO JUSTE??
-         // p.getType // useful??
           tcExpr(p.lhs, TInt, TString)
           tcExpr(p.rhs, TInt, TString)
         case Minus(lhs, rhs) => 
@@ -70,7 +67,7 @@ object TypeChecking extends Pipeline[Program, Program] {
             case (TIntArray, TIntArray) =>
               tcExpr(lhs, TIntArray)
               tcExpr(rhs, TIntArray)
-            case (TClass(x), TClass(y)) => // TODO JUSTE?? la manière de matcher le TClass?!?
+            case (TClass(x), TClass(y)) => 
               tcExpr(lhs, TObject)
               tcExpr(rhs, TObject)
             case _ => 
@@ -85,8 +82,6 @@ object TypeChecking extends Pipeline[Program, Program] {
         case NewIntArray(size) =>
           tcExpr(size, TInt)
         case m: MethodCall => {
-          // TODO JUSTE??
-         // m.getType // useful car peut-être appelé dessous...voir Cédric!
           tcExpr(m.obj, m.obj.getType)
           m.args.foreach { x => tcExpr(x, x.getType) }
         }
@@ -102,7 +97,6 @@ object TypeChecking extends Pipeline[Program, Program] {
  
     /** Invokes tcExpr as needed in the expressions of stat */
     def tcStat(stat: StatTree): Unit = {
-      // TODO
       stat match {
         case Block(stats) =>
           stats.foreach { x => tcStat(x) }

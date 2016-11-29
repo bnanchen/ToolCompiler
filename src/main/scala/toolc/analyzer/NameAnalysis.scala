@@ -32,7 +32,6 @@ object NameAnalysis extends Pipeline[Program, Program] {
             error("The Main Object can't be named 'Object'")
           }
           val clSym = new ClassSymbol(c.id.value).setPos(c) 
-          //clSym.setType(Types.TClass(clSym)) // TODO Cannot set the symbol of a ClassSymbol
           c.setSymbol(clSym)
           c.id.setSymbol(clSym)
           global.classes = global.classes.+((c.id.value, clSym))
@@ -99,9 +98,8 @@ object NameAnalysis extends Pipeline[Program, Program] {
           for (p <- m.vars) {
             setTypeSymbol(p.tpe, global)
             val varSym = new VariableSymbol(p.id.value)
-            varSym.setType(p.tpe.getType) // ajouté durant le labo Type Checking // TODO problème getType
+            varSym.setType(p.tpe.getType) // ajouté durant le labo Type Checking 
             mSym.members = mSym.members + (p.id.value -> varSym.setPos(p))
-           // mSym.members(p.id.value).setType(p.tpe.getType) // ajouté durant le labo Type Checking
             // verify that two members have not the same name
             if (m.vars.filter { x => (x.id.value==p.id.value)}.size != 1) {
               error("Two members of one method can't have the same name.")
@@ -125,7 +123,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
           }
           // set the type of the return therefore of the method
           setTypeSymbol(m.retType, global)
-          mSym.setType(m.retType.getType) // ajouté durant le labo Type Checking // TODO PROBLEME!!!!!!!!!
+          mSym.setType(m.retType.getType) // ajouté durant le labo Type Checking 
           def controlMethodOverride(toOverride: Option[ClassSymbol]) = toOverride match {
             case None => 
             case Some(clSym) => {
@@ -146,7 +144,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
                   if (listBool.contains(false)) {
                     error("All the arguments of a method that overrides another one need to be subtype of the arguments of the overriden one.")
                   }
-                  // est-ce qu'il faut que j'ajoute toutes les méthodes 
+
                   mSym.overridden = clSym.methods.get(m.id.value)
                 }
                 case None =>
@@ -183,7 +181,6 @@ object NameAnalysis extends Pipeline[Program, Program] {
           setTypeSymbol(v.tpe, global)
           val vSym = new VariableSymbol(v.id.value).setPos(v)
           vSym.setType(v.tpe.getType) // ajouté durant le labo Type Checking
-          //v.setSymbol(vSym) // TODO
           // Verify that two variables have not the same name
           if (c.vars.filter { x => (x.id.value==v.id.value) }.size != 1) {
             error("Two variables of one class can't have the same name.")
@@ -331,7 +328,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
           m.args.foreach(setESymbols(_))
           m.obj.getType match {
             case Types.TClass(clSy) => {
-              clSy.lookupMethod(m.meth.value) match { // clSy.methods.get(m.meth.value)
+              clSy.lookupMethod(m.meth.value) match { 
                 case Some(s) => 
                   m.meth.setSymbol(s)
                 case None =>
@@ -339,7 +336,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
             }
             case _ => 
           }
-          m.meth.getSymbol.setType(m.getType) // TODO TEST 60, 93, 105: problème à cette ligne, getSymbol: Accessing undefined symbol.
+          m.meth.getSymbol.setType(m.getType) 
         }
         case Variable(id) => setISymbol(id)
         case t: This => { 

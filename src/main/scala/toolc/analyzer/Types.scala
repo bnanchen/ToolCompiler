@@ -39,15 +39,13 @@ object Types {
   }
   
   case class TClass(classSymbol: ClassSymbol) extends Type {
-    override def isSubTypeOf(tpe: Type): Boolean = {
-      // TODO Done. 
+    override def isSubTypeOf(tpe: Type): Boolean = { 
       tpe match {
         case TClass(clSym) => {
           // All object types are subtypes of themselves and the special “Object” object type.
           if ((clSym.name == "Object") || (clSym.name == classSymbol.name)) { 
             true 
           } else {
-            // TODO Une subclasse est un subtype de la superclass? Je pense.
             def acc(t: Option[ClassSymbol]): Boolean = t match {
               case Some(cSy) => {
                 if (cSy.name == clSym.name) {

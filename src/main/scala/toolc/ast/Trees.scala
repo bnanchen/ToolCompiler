@@ -11,7 +11,7 @@ object Trees {
   // Identifiers represent names in Tool. When a unique symbol gets attached to them,
   // they become unique
   case class Identifier(value: String) extends Tree with Symbolic[Symbol] with Typed {
-    override def getType: Type = getSymbol match { // TODO accessing undefined symbol
+    override def getType: Type = getSymbol match { 
       case cs: ClassSymbol =>
         TClass(cs)
 
@@ -91,7 +91,6 @@ object Trees {
   // Arithmetic operators (Plus works on any combination of Int/String)
   case class Plus(lhs: ExprTree, rhs: ExprTree) extends ExprTree {
     def getType = {
-      // TODO Done.
       (lhs.getType, rhs.getType) match {
         case (TInt, TInt) => TInt
         case (TString, TInt) => TString
@@ -135,7 +134,6 @@ object Trees {
   }
   case class MethodCall(obj: ExprTree, meth: Identifier, args: List[ExprTree]) extends ExprTree {
     def getType = {
-      // TODO Done.
       // 1. the expression on which the method is called must be of TClass
       obj.getType match {
         case TClass(clSym) => {
@@ -146,7 +144,7 @@ object Trees {
               if (mtdSym.argList.length == args.length) {
                 // 4. the arguments passed must be subtypes of the declared parameters
                 def verifyArg(expr: ExprTree, arg: Type): Boolean = {
-                  expr.getType match { // TODO getType incorrect
+                  expr.getType match { 
                     case TClass(cSy) => 
                       expr.getType.isSubTypeOf(arg)
                     case t: Type => 
@@ -161,7 +159,6 @@ object Trees {
                 }
                 
                 if (!listBool.contains(false)) {
-                  // TODO est-ce correct?
                   clSym.methods(meth.value).getType
                 } else {
                   sys.error("The arguments passed must be subtypes of the declared parameters.")
