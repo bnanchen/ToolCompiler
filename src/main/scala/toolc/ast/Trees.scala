@@ -11,7 +11,7 @@ object Trees {
   // Identifiers represent names in Tool. When a unique symbol gets attached to them,
   // they become unique
   case class Identifier(value: String) extends Tree with Symbolic[Symbol] with Typed {
-    override def getType: Type = getSymbol match {
+    override def getType: Type = getSymbol match { // TODO accessing undefined symbol
       case cs: ClassSymbol =>
         TClass(cs)
 

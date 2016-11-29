@@ -32,6 +32,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
             error("The Main Object can't be named 'Object'")
           }
           val clSym = new ClassSymbol(c.id.value).setPos(c) 
+          //clSym.setType(Types.TClass(clSym)) // TODO Cannot set the symbol of a ClassSymbol
           c.setSymbol(clSym)
           c.id.setSymbol(clSym)
           global.classes = global.classes.+((c.id.value, clSym))
@@ -95,10 +96,20 @@ object NameAnalysis extends Pipeline[Program, Program] {
         // first I collect the methods of the class:
         for (m <- c.methods) {
           val mSym = new MethodSymbol(m.id.value, global.classes(c.id.value)).setPos(m) 
-          mSym.setType(m.retType.getType) // ajouté durant le labo Type Checking
           for (p <- m.vars) {
+            /*
+            p.tpe match {
+              case ClassType(id) => { // TODO correct cette merde?
+                val vSy = new VariableSymbol(id.value)
+                vSy.setType(Types.TObject)
+                id.setSymbol(vSy.setPos(id))
+                
+              }
+              case _ =>
+            }*/
+            setTypeSymbol(p.tpe, global)
             val varSym = new VariableSymbol(p.id.value)
-            varSym.setType(p.tpe.getType) // ajouté durant le labo Type Checking
+            varSym.setType(p.tpe.getType) // ajouté durant le labo Type Checking // TODO problème getType
             mSym.members = mSym.members + (p.id.value -> varSym.setPos(p))
            // mSym.members(p.id.value).setType(p.tpe.getType) // ajouté durant le labo Type Checking
             // verify that two members have not the same name
@@ -108,6 +119,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
           }
           
           for (a <- m.args) {
+            setTypeSymbol(a.tpe, global)
             val aSym = new VariableSymbol(a.id.value).setPos(a)
             aSym.setType(a.tpe.getType) // ajouté durant le labo Type Checking
             mSym.params = mSym.params + (a.id.value -> aSym)
@@ -137,13 +149,16 @@ object NameAnalysis extends Pipeline[Program, Program] {
             }
           }
           toOverride.foreach { x => controlMethodOverride(x) }
-          
-          // Add the method to the ClassSymbol corresponding: 
+
+          // Add the method to the ClassSymbol corresponding:
+          setTypeSymbol(m.retType, global)
+          mSym.setType(m.retType.getType) // ajouté durant le labo Type Checking // TODO PROBLEME!!!!!!!!!
           global.classes(c.id.value).methods = global.classes(c.id.value).methods + (m.id.value -> mSym)
         }
-        
+        // TODO peut-être mettre les variables avant les méthodes????????????
         // second the variables: 
         for (v <- c.vars) {
+          setTypeSymbol(v.tpe, global)
           val vSym = new VariableSymbol(v.id.value).setPos(v)
           vSym.setType(v.tpe.getType) // ajouté durant le labo Type Checking
           // Verify that two variables have not the same name
@@ -164,6 +179,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
           // Add the variable to the ClassSymbol corresponding: 
           global.classes(c.id.value).members = global.classes(c.id.value).members + (v.id.value -> vSym)
         }
+        
       }
       
       global
