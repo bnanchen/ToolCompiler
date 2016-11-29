@@ -146,6 +146,7 @@ object NameAnalysis extends Pipeline[Program, Program] {
                   if (listBool.contains(false)) {
                     error("All the arguments of a method that overrides another one need to be subtype of the arguments of the overriden one.")
                   }
+                  // est-ce qu'il faut que j'ajoute toutes les méthodes 
                   mSym.overridden = clSym.methods.get(m.id.value)
                 }
                 case None =>
@@ -161,6 +162,21 @@ object NameAnalysis extends Pipeline[Program, Program] {
           // Add the method to the ClassSymbol corresponding:
           global.classes(c.id.value).methods = global.classes(c.id.value).methods + (m.id.value -> mSym)
         }
+        
+        
+        // addition of the methods of the parent that are not declared:
+          c.parent match {
+            case Some(id) => {
+              def accAddMeth(m: MethodSymbol) = {
+                if (global.classes(c.id.value).methods.get(m.name) == None) {
+                  global.classes(c.id.value).methods = global.classes(c.id.value).methods + (m.name -> m)
+                }
+              }
+              global.classes(id.value).methods.map{x => x._2}.foreach { y => accAddMeth(y) }
+              
+            }
+            case None =>
+          }
         
         // second the variables: 
         for (v <- c.vars) {
