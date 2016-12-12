@@ -19,16 +19,23 @@ object CodeGeneration extends Pipeline[Program, Unit] {
     import ctx.reporter._
 
     /**** Helper methods ****/
-
     def generateClassFile(ct: ClassDecl, shortFileName: String, outDir: String): Unit = {
       val cs = ct.getSymbol
       val cf = new ClassFile(cs.name, cs.parent.map(_.name))
       cf.setSourceFile(shortFileName)
       cf.addDefaultConstructor
-
+      
       // TODO: Add class fields
+      cs.members.map{ x => x._2 }.foreach(v => (cf.addField(typeToDescr(v.getType), v.name)))
+      
       // TODO: Add class methods and generate code for them
-
+      // Helper function 
+      def translateArguments(argList: List[VariableSymbol]): String = argList match {
+        case Nil => ""
+        case x :: xs => typeToDescr(x.getType) + translateArguments(xs)
+      }
+      cs.methods.map{ x => x._2 }.foreach(m => (cf.addMethod(typeToDescr(m.getType), m.name, translateArguments(m.argList))))
+        
       writeClassFile(cf, outDir, cs.name)
     }
 
@@ -72,9 +79,20 @@ object CodeGeneration extends Pipeline[Program, Unit] {
       val mapping = argMappings ++ variableMappings
 
       // TODO: generate code for statements
+      mt.stats.foreach { x => cGenStat(x)(ch, mapping, mt.id.value) } 
+      
       // TODO: Generate code for the return expression
+      cGenExpr(mt.retExpr)(ch, mapping, mt.id.value) 
+      
       // TODO: Return with the correct opcode, based on the type of the return expression
-
+      mt.retType.getType match {
+        case TInt => ch << IRETURN
+        case TBoolean => ch << IRETURN
+        case TString => ch << ARETURN
+        case TIntArray => ch << ARETURN
+        case TClass(cSy) => ch << ARETURN 
+        case _ => ch << RETURN 
+      }
       ch.freeze
     }
 
@@ -82,7 +100,8 @@ object CodeGeneration extends Pipeline[Program, Unit] {
     def cGenMain(ch: CodeHandler, stmts: List[StatTree], cname: String): Unit = {
 
       // TODO: generate code for main method
-
+      stmts.foreach (x => cGenStat(x)(ch, Map.empty, "Main"))
+      ch << RETURN
       ch.freeze
     }
 
@@ -93,7 +112,49 @@ object CodeGeneration extends Pipeline[Program, Unit] {
       statement match {
         case Block(stats) =>
           stats foreach cGenStat
-        case _ => ??? // TODO: other cases
+        case If(expr, thn, els) =>
+          ch << LineNumber(expr.line)
+           cGenExpr(expr)
+           cGenStat(thn)
+           els match {
+             case Some(e) => cGenStat(e)
+             case None => 
+           }
+        case While(expr, stat) => 
+          ch << LineNumber(expr.line)
+          cGenExpr(expr)
+          cGenStat(stat)
+        case Println(expr) =>
+          ch << LineNumber(expr.line)
+          ch << GetStatic("java/lang/System", "out", "Ljava/io/PrintStream;")
+          cGenExpr(expr)
+          ch << InvokeVirtual("java/io/PrintStream", "println", "("+ typeToDescr(expr.getType) +")V")
+        case Assign(id, expr) =>
+          ch << LineNumber(expr.line)
+          cGenExpr(expr) // s'occuper de la stack
+          mapping.get(id.value) match {
+            case Some(a) => 
+              // means that it is a local variable because appearing in the mapping
+              id.getType match {
+                case TInt => IStore(a)
+                case TBoolean => IStore(a)
+                case _ => AStore(a) 
+              }
+            case None => 
+              // means that it is a global variable
+              PutField(cname, id.value, typeToDescr(id.getType))
+          }
+          ch << PutField(cname, id.value, typeToDescr(id.getType))
+        case ArrayAssign(id, index, expr) => // top: array, index, integer
+          ch << LineNumber(expr.line)
+          ch << GetField(cname, id.value, "[I")
+          cGenExpr(index)
+          cGenExpr(expr)
+          ch << IASTORE
+        case DoExpr(e) =>
+          // TODO autre chose?!?
+          ch << LineNumber(e.line)
+          cGenExpr(e)
       }
     }
 
@@ -103,26 +164,192 @@ object CodeGeneration extends Pipeline[Program, Unit] {
                 (implicit ch: CodeHandler, mapping: LocalsPosMapping, cname: String): Unit = {
       expr match {
         case And(lhs,rhs) =>
-          ch << ICONST_0
+          ch << ICONST_0 
           cGenExpr(lhs)
 
           val theLabel = ch.getFreshLabel("alreadyFalse")
-          ch << IfEq(theLabel)
+          ch << IfEq(theLabel) // consomme le boolean (0 ou 1) retourné par cGenExpr()
 
           // Only care about the right hand side value
           ch << POP
           cGenExpr(rhs)
 
           ch << Label(theLabel)
-        case _ => ??? // TODO: other cases
+        case Or(lhs, rhs) => {
+          ch << ICONST_1            
+          cGenExpr(lhs)
+          
+          val theLabel = ch.getFreshLabel("alreadyTrue")
+          ch << IfNe(theLabel)
+          
+          //Only care about the right hand side value
+          ch << POP
+          cGenExpr(rhs)
+          
+          ch << Label(theLabel)
+        }
+        
+        case Not(expr) => {
+          cGenExpr(expr) 
+          
+          val label = ch.getFreshLabel("true")
+          val nextLabel = ch.getFreshLabel("next")
+          ch << IfEq(label)
+          ch << ICONST_0
+          ch << Goto(nextLabel)
+          
+          ch << Label(label)
+          ch << ICONST_1
+          
+          ch << Label(nextLabel)
+        }
+        
+        case Plus(lhs, rhs) => {
+          (lhs.getType, rhs.getType) match {
+            case (TInt, TInt) => 
+              cGenExpr(lhs)
+              cGenExpr(rhs) 
+              ch << IADD
+              
+            case (TString, TInt) =>
+              ch << DefaultNew("java/lang/StringBuilder")
+              cGenExpr(lhs)
+              ch << InvokeVirtual("java/lang/StringBuilder", "append", "("+typeToDescr(TString)+")Ljava/lang/StringBuilder;")
+              cGenExpr(rhs)
+              ch << InvokeVirtual("java/lang/StringBuilder", "append", "(I)Ljava/lang/StringBuilder;")
+              ch << InvokeVirtual("java/lang/StringBuilder", "toString", "(V)"+ typeToDescr(TString))
+            
+            case (TInt, TString) =>
+              ch << DefaultNew("java/lang/StringBuilder")
+              cGenExpr(lhs)
+              ch << InvokeVirtual("java/lang/StringBuilder", "append", "(I)java/lang/StringBuilder")
+              cGenExpr(rhs)
+              ch << InvokeVirtual("java/lang/StringBuilder", "append", "("+typeToDescr(TString)+")Ljava/lang/StringBuilder;")
+              ch << InvokeVirtual("java/lang/StringBuilder", "toString", "(V)"+ typeToDescr(TString))
+              
+            case (TString, TString) =>
+              ch << DefaultNew("java/lang/StringBuilder")
+              cGenExpr(lhs)
+              ch << InvokeVirtual("java/lang/StringBuilder", "append", "("+typeToDescr(TString)+")Ljava/lang/StringBuilder;")
+              cGenExpr(rhs)
+              ch << InvokeVirtual("java/lang/StringBuilder", "append", "("+typeToDescr(TString)+")Ljava/lang/StringBuilder;")
+              ch << InvokeVirtual("java/lang/StringBuilder", "toString", "(V)"+ typeToDescr(TString))
+              
+            case (_, _) => 
+              sys.error("You can't addition a "+ lhs.getType +" with a "+ rhs.getType +".")
+          }
+        }
+        
+        case Minus(lhs, rhs) => {
+        cGenExpr(lhs)
+        cGenExpr(rhs)
+        ch << ISUB
+        }
+        
+        case Times(lhs, rhs) => {
+          cGenExpr(lhs)
+          cGenExpr(rhs)
+          ch << IMUL
+        }
+        
+        case Div(lhs, rhs) => {
+          cGenExpr(lhs)
+          cGenExpr(rhs)
+          ch << IDIV
+        }
+        
+        case LessThan(lhs, rhs) => {
+          cGenExpr(lhs)
+          cGenExpr(rhs)
+          val falseLabel = ch.getFreshLabel("notLessThan")
+          val nextLabel = ch.getFreshLabel("continue")
+          ch << If_ICmpGe(falseLabel) // if_icmpge succeeds if and only if value1 ≥ value2 and go to falseLabel
+          ch << ICONST_1
+          ch << Goto(nextLabel)
+          ch << Label(falseLabel)
+          ch << ICONST_0
+          ch << Label(nextLabel)
+        }
+        
+        case Equals(lhs, rhs) => {
+          cGenExpr(lhs)
+          cGenExpr(rhs)
+          val falseLabel = ch.getFreshLabel("notEqual")
+          val nextLabel = ch.getFreshLabel("continue")
+          ch << If_ICmpNe(falseLabel) // if_icmpne succeeds if and only if value1 ≠ value2 and go to falseLabel
+          ch << ICONST_1
+          ch << Goto(nextLabel)
+          ch << Label(falseLabel)
+          ch << ICONST_0
+          ch << Label(nextLabel)
+        }
+        
+        case ArrayRead(arr, index) => {
+          cGenExpr(arr)
+          cGenExpr(index)
+          ch << IALOAD
+        }
+        
+        case ArrayLength(arr) => {
+          cGenExpr(arr)
+          ch << ARRAYLENGTH
+        }
+        
+        case NewIntArray(size) => {
+          cGenExpr(size) // put the size on top of the stake
+          ch << NewArray("I")
+        }
+        
+        case This() => {
+          ch << ALoad(0) // push "this" into the stack
+        }
+        
+        case MethodCall(obj, meth, args) => {
+          cGenExpr(obj)
+          args.foreach { x => cGenExpr(x) }
+          val argType: String = 
+            (for {
+              a <- args
+            } yield (typeToDescr(a.getType))).mkString
+          ch << InvokeVirtual(obj.getType.toString(), meth.value,"("+ argType +")"+ typeToDescr(meth.getSymbol.getType))
+        }
+        
+        case New(tpe) => {
+          // TODO  
+          ch << DefaultNew(tpe.value)
+        }
+        
+        case IntLit(value) => {
+          ch << Ldc(value)
+        }
+        
+        case StringLit(value) => {
+          ch << Ldc(value)
+        }
+        
+        case True() => {
+          ch << ICONST_1
+        }
+        
+        case False() => {
+          ch << ICONST_0
+        }
+        
+        case Variable(id) => {
+          ch << GetField(cname, id.value, typeToDescr(id.getType))
+        }
       }
 
     }
 
     // Transforms a Tool type to the corresponding JVM type description
     def typeToDescr(t: Type): String = t match {
-      case TInt => "I"
-      case _ => ??? // TODO: other cases
+        case TInt => "I"
+        case TBoolean => "Z"
+        case TString => "Ljava/lang/String;" 
+        case TIntArray => "[I"
+        case TClass(cSy) => "A" 
+        case _ => sys.error("There is a type problem.")
     }
 
     /**** Main code ****/

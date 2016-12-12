@@ -1,6 +1,3 @@
-program SimpleHello {
-	do(new SH().addHello("Bernard"));	
-}
 
 class SH {
 	def addHello(w: String): SH = {
