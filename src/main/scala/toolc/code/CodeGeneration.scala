@@ -27,15 +27,21 @@ object CodeGeneration extends Pipeline[Program, Unit] {
       
       // TODO: Add class fields
       cs.members.map{ x => x._2 }.foreach(v => (cf.addField(typeToDescr(v.getType), v.name)))
-      
+
       // TODO: Add class methods and generate code for them
       // Helper function 
       def translateArguments(argList: List[VariableSymbol]): String = argList match {
         case Nil => ""
         case x :: xs => typeToDescr(x.getType) + translateArguments(xs)
       }
-      cs.methods.map{ x => x._2 }.foreach(m => (cf.addMethod(typeToDescr(m.getType), m.name, translateArguments(m.argList))))
-        
+      val listMethods = cs.methods.map{ x => x._2 }.toList
+      var i = 0
+      while (i < listMethods.size) {
+        val ch: CodeHandler =  cf.addMethod(typeToDescr(listMethods(i).getType), listMethods(i).name, translateArguments(listMethods(i).argList)).codeHandler
+        cGenMethod(ch, ct.methods(i))
+        i += 1
+      }
+      
       writeClassFile(cf, outDir, cs.name)
     }
 
@@ -98,7 +104,7 @@ object CodeGeneration extends Pipeline[Program, Unit] {
 
     // Generates code for the main method
     def cGenMain(ch: CodeHandler, stmts: List[StatTree], cname: String): Unit = {
-
+      
       // TODO: generate code for main method
       stmts.foreach (x => cGenStat(x)(ch, Map.empty, "Main"))
       ch << RETURN
@@ -115,15 +121,27 @@ object CodeGeneration extends Pipeline[Program, Unit] {
         case If(expr, thn, els) =>
           ch << LineNumber(expr.line)
            cGenExpr(expr)
+           val labelFalse = ch.getFreshLabel("ifFalse") 
+           val labelNext = ch.getFreshLabel("ifNext")
+           ch << IfEq(labelFalse)
            cGenStat(thn)
+           ch << Goto(labelNext)
+           ch << Label(labelFalse)
            els match {
              case Some(e) => cGenStat(e)
              case None => 
            }
+          ch << Label(labelNext)
         case While(expr, stat) => 
           ch << LineNumber(expr.line)
+          val labelFalse = ch.getFreshLabel("whileFalse")
+          val labelAgain = ch.getFreshLabel("whileAgain")
+          ch << Label(labelAgain)
           cGenExpr(expr)
+          ch << IfEq(labelFalse)
           cGenStat(stat)
+          ch << Goto(labelAgain)
+          ch << Label(labelFalse)
         case Println(expr) =>
           ch << LineNumber(expr.line)
           ch << GetStatic("java/lang/System", "out", "Ljava/io/PrintStream;")
@@ -131,30 +149,31 @@ object CodeGeneration extends Pipeline[Program, Unit] {
           ch << InvokeVirtual("java/io/PrintStream", "println", "("+ typeToDescr(expr.getType) +")V")
         case Assign(id, expr) =>
           ch << LineNumber(expr.line)
-          cGenExpr(expr) // s'occuper de la stack
-          mapping.get(id.value) match {
-            case Some(a) => 
+          cGenExpr(expr)
+          mapping.get(id.getSymbol.name) match {
+            case Some(slotNumber) => 
               // means that it is a local variable because appearing in the mapping
-              id.getType match {
-                case TInt => IStore(a)
-                case TBoolean => IStore(a)
-                case _ => AStore(a) 
+              typeToDescr(expr.getType) match {
+                case "I" => ch << IStore(slotNumber)
+                case "Z" => ch << IStore(slotNumber)
+                case _ => ch << AStore(slotNumber) 
               }
             case None => 
               // means that it is a global variable
-              PutField(cname, id.value, typeToDescr(id.getType))
+              ch << ALoad(0)
+              ch << PutField(cname, id.value, typeToDescr(id.getType))
           }
-          ch << PutField(cname, id.value, typeToDescr(id.getType))
         case ArrayAssign(id, index, expr) => // top: array, index, integer
           ch << LineNumber(expr.line)
+          ch << ALoad(0)
           ch << GetField(cname, id.value, "[I")
           cGenExpr(index)
           cGenExpr(expr)
           ch << IASTORE
         case DoExpr(e) =>
-          // TODO autre chose?!?
           ch << LineNumber(e.line)
           cGenExpr(e)
+          ch << POP // don't need the result on the task, just do the expression e
       }
     }
 
@@ -217,7 +236,7 @@ object CodeGeneration extends Pipeline[Program, Unit] {
               ch << InvokeVirtual("java/lang/StringBuilder", "append", "("+typeToDescr(TString)+")Ljava/lang/StringBuilder;")
               cGenExpr(rhs)
               ch << InvokeVirtual("java/lang/StringBuilder", "append", "(I)Ljava/lang/StringBuilder;")
-              ch << InvokeVirtual("java/lang/StringBuilder", "toString", "(V)"+ typeToDescr(TString))
+              ch << InvokeVirtual("java/lang/StringBuilder", "toString", "()"+ typeToDescr(TString))
             
             case (TInt, TString) =>
               ch << DefaultNew("java/lang/StringBuilder")
@@ -225,7 +244,7 @@ object CodeGeneration extends Pipeline[Program, Unit] {
               ch << InvokeVirtual("java/lang/StringBuilder", "append", "(I)java/lang/StringBuilder")
               cGenExpr(rhs)
               ch << InvokeVirtual("java/lang/StringBuilder", "append", "("+typeToDescr(TString)+")Ljava/lang/StringBuilder;")
-              ch << InvokeVirtual("java/lang/StringBuilder", "toString", "(V)"+ typeToDescr(TString))
+              ch << InvokeVirtual("java/lang/StringBuilder", "toString", "()"+ typeToDescr(TString))
               
             case (TString, TString) =>
               ch << DefaultNew("java/lang/StringBuilder")
@@ -233,7 +252,7 @@ object CodeGeneration extends Pipeline[Program, Unit] {
               ch << InvokeVirtual("java/lang/StringBuilder", "append", "("+typeToDescr(TString)+")Ljava/lang/StringBuilder;")
               cGenExpr(rhs)
               ch << InvokeVirtual("java/lang/StringBuilder", "append", "("+typeToDescr(TString)+")Ljava/lang/StringBuilder;")
-              ch << InvokeVirtual("java/lang/StringBuilder", "toString", "(V)"+ typeToDescr(TString))
+              ch << InvokeVirtual("java/lang/StringBuilder", "toString", "()"+ typeToDescr(TString))
               
             case (_, _) => 
               sys.error("You can't addition a "+ lhs.getType +" with a "+ rhs.getType +".")
@@ -297,7 +316,7 @@ object CodeGeneration extends Pipeline[Program, Unit] {
         
         case NewIntArray(size) => {
           cGenExpr(size) // put the size on top of the stake
-          ch << NewArray("I")
+          ch << NewArray(10)
         }
         
         case This() => {
@@ -311,7 +330,8 @@ object CodeGeneration extends Pipeline[Program, Unit] {
             (for {
               a <- args
             } yield (typeToDescr(a.getType))).mkString
-          ch << InvokeVirtual(obj.getType.toString(), meth.value,"("+ argType +")"+ typeToDescr(meth.getSymbol.getType))
+
+            ch << InvokeVirtual(obj.getType.toString(), meth.value,"("+ argType +")"+ typeToDescr(meth.getSymbol.getType))
         }
         
         case New(tpe) => {
@@ -336,7 +356,18 @@ object CodeGeneration extends Pipeline[Program, Unit] {
         }
         
         case Variable(id) => {
-          ch << GetField(cname, id.value, typeToDescr(id.getType))
+          mapping.get(id.getSymbol.name) match {
+            case Some(slotNumber) =>
+              id.getType match {
+                case TInt => 
+                  ch << ILoad(slotNumber)
+                case _ => 
+                  ch << ALoad(slotNumber)
+              }
+            case None => 
+              ch << ALoad(0)
+              ch << GetField(cname, id.value, typeToDescr(id.getType))
+          }
         }
       }
 
@@ -348,7 +379,7 @@ object CodeGeneration extends Pipeline[Program, Unit] {
         case TBoolean => "Z"
         case TString => "Ljava/lang/String;" 
         case TIntArray => "[I"
-        case TClass(cSy) => "A" 
+        case TClass(cSy) => "L"+ cSy.name +";"
         case _ => sys.error("There is a type problem.")
     }
 
