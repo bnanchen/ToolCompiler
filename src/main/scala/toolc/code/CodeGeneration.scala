@@ -241,7 +241,7 @@ object CodeGeneration extends Pipeline[Program, Unit] {
             case (TInt, TString) =>
               ch << DefaultNew("java/lang/StringBuilder")
               cGenExpr(lhs)
-              ch << InvokeVirtual("java/lang/StringBuilder", "append", "(I)java/lang/StringBuilder")
+              ch << InvokeVirtual("java/lang/StringBuilder", "append", "(I)Ljava/lang/StringBuilder;")
               cGenExpr(rhs)
               ch << InvokeVirtual("java/lang/StringBuilder", "append", "("+typeToDescr(TString)+")Ljava/lang/StringBuilder;")
               ch << InvokeVirtual("java/lang/StringBuilder", "toString", "()"+ typeToDescr(TString))
@@ -335,7 +335,6 @@ object CodeGeneration extends Pipeline[Program, Unit] {
         }
         
         case New(tpe) => {
-          // TODO  
           ch << DefaultNew(tpe.value)
         }
         
