@@ -165,8 +165,14 @@ object CodeGeneration extends Pipeline[Program, Unit] {
           }
         case ArrayAssign(id, index, expr) => // top: array, index, integer
           ch << LineNumber(expr.line)
-          ch << ALoad(0)
-          ch << GetField(cname, id.value, "[I")
+          mapping.get(id.getSymbol.name) match {
+            case Some(slotNumber) =>
+              // means that it is a local variable because appearing in the mapping
+              ch << ALoad(slotNumber)
+            case None => 
+              ch << ALoad(0)
+              ch << GetField(cname, id.value, "[I")
+          }
           cGenExpr(index)
           cGenExpr(expr)
           ch << IASTORE
