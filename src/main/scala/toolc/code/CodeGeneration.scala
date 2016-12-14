@@ -38,7 +38,23 @@ object CodeGeneration extends Pipeline[Program, Unit] {
       var i = 0
       while (i < listMethods.size) {
         val ch: CodeHandler =  cf.addMethod(typeToDescr(listMethods(i).getType), listMethods(i).name, translateArguments(listMethods(i).argList)).codeHandler
-        cGenMethod(ch, ct.methods(i))
+        //cGenMethod(ch, ct.methods(i)) // TODO ct.methods(i) pause problème
+        // TODO penser à l'héritage:
+        def accInheritance(cd: ClassDecl): Unit = {
+          if (cd.methods.map{ x => x.id.value }.contains(listMethods(i).name)) {
+            val index = cd.methods.map{ x => x.id.value}.indexOf(listMethods(i).name)
+            cGenMethod(ch, cd.methods(index))
+          } else {
+            cd.parent match {
+              case Some(l) => 
+                val ind = prog.classes.map{ x => x.id.value }.indexOf(l.value)
+                accInheritance(prog.classes(ind))
+              case None => 
+              }
+            }
+        }
+        
+        accInheritance(ct)
         i += 1
       }
       

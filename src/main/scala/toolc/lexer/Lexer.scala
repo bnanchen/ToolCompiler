@@ -88,7 +88,7 @@ object Lexer extends Pipeline[File, Iterator[Token]] {
       * nextChar points to the first unread character.
       */
     def consume() = {
-      print(currentChar)
+      
       currentChar_ = nextChar_
       currentPos_ = nextPos_
       nextChar_ = readChar()
