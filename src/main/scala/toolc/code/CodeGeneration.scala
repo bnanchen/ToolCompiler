@@ -27,8 +27,6 @@ object CodeGeneration extends Pipeline[Program, Unit] {
       
       // Add class fields
       cs.members.map{ x => x._2 }.foreach(v => (cf.addField(typeToDescr(v.getType), v.name)))
-     // ct.vars.foreach(v => (cf.addField(typeToDescr(v.tpe.getType), v.id.value)))
-      //for (v <- ct.vars) cf.addField(typeToDescr(v.tpe.getType), v.getSymbol.name)
 
       // Add class methods and generate code for them
       // Helper function 
@@ -91,7 +89,7 @@ object CodeGeneration extends Pipeline[Program, Unit] {
 
     def cGenMethod(ch: CodeHandler, mt: MethodDecl): Unit = {
       val methSym = mt.getSymbol
-
+      val cs = mt.getSymbol.classSymbol.name
       // Maps each argument to one local variable index position
       val argMappings = mt.args.zipWithIndex.map { case (arg, index) =>
         arg.id.getSymbol.name -> (index + 1)
@@ -103,13 +101,14 @@ object CodeGeneration extends Pipeline[Program, Unit] {
       val mapping = argMappings ++ variableMappings
 
       // generate code for statements
-      mt.stats.foreach { x => cGenStat(x)(ch, mapping, mt.id.value) } 
+      mt.stats.foreach { x => cGenStat(x)(ch, mapping, cs) } 
       
+      ch << LineNumber(mt.retExpr.line)
       // Generate code for the return expression
-      cGenExpr(mt.retExpr)(ch, mapping, mt.id.value) 
+      cGenExpr(mt.retExpr)(ch, mapping, cs) 
       
       // Return with the correct opcode, based on the type of the return expression
-      mt.retType.getType match {
+      mt.retExpr.getType match {
         case TInt => ch << IRETURN
         case TBoolean => ch << IRETURN
         case TString => ch << ARETURN
@@ -387,8 +386,10 @@ object CodeGeneration extends Pipeline[Program, Unit] {
         case Variable(id) => {
           mapping.get(id.getSymbol.name) match {
             case Some(slotNumber) =>
-              id.getType match {
-                case TInt => 
+              typeToDescr(id.getType) match {
+                case "I" => 
+                  ch << ILoad(slotNumber)
+                case "Z" => 
                   ch << ILoad(slotNumber)
                 case _ => 
                   ch << ALoad(slotNumber)
