@@ -25,10 +25,12 @@ object CodeGeneration extends Pipeline[Program, Unit] {
       cf.setSourceFile(shortFileName)
       cf.addDefaultConstructor
       
-      // TODO: Add class fields
+      // Add class fields
       cs.members.map{ x => x._2 }.foreach(v => (cf.addField(typeToDescr(v.getType), v.name)))
+     // ct.vars.foreach(v => (cf.addField(typeToDescr(v.tpe.getType), v.id.value)))
+      //for (v <- ct.vars) cf.addField(typeToDescr(v.tpe.getType), v.getSymbol.name)
 
-      // TODO: Add class methods and generate code for them
+      // Add class methods and generate code for them
       // Helper function 
       def translateArguments(argList: List[VariableSymbol]): String = argList match {
         case Nil => ""
@@ -38,8 +40,8 @@ object CodeGeneration extends Pipeline[Program, Unit] {
       var i = 0
       while (i < listMethods.size) {
         val ch: CodeHandler =  cf.addMethod(typeToDescr(listMethods(i).getType), listMethods(i).name, translateArguments(listMethods(i).argList)).codeHandler
-        //cGenMethod(ch, ct.methods(i)) // TODO ct.methods(i) pause problème
-        // TODO penser à l'héritage:
+
+        // Deal with inheritance in searching the MethodDecl if needed:
         def accInheritance(cd: ClassDecl): Unit = {
           if (cd.methods.map{ x => x.id.value }.contains(listMethods(i).name)) {
             val index = cd.methods.map{ x => x.id.value}.indexOf(listMethods(i).name)
@@ -100,13 +102,13 @@ object CodeGeneration extends Pipeline[Program, Unit] {
 
       val mapping = argMappings ++ variableMappings
 
-      // TODO: generate code for statements
+      // generate code for statements
       mt.stats.foreach { x => cGenStat(x)(ch, mapping, mt.id.value) } 
       
-      // TODO: Generate code for the return expression
+      // Generate code for the return expression
       cGenExpr(mt.retExpr)(ch, mapping, mt.id.value) 
       
-      // TODO: Return with the correct opcode, based on the type of the return expression
+      // Return with the correct opcode, based on the type of the return expression
       mt.retType.getType match {
         case TInt => ch << IRETURN
         case TBoolean => ch << IRETURN
@@ -121,7 +123,7 @@ object CodeGeneration extends Pipeline[Program, Unit] {
     // Generates code for the main method
     def cGenMain(ch: CodeHandler, stmts: List[StatTree], cname: String): Unit = {
       
-      // TODO: generate code for main method
+      // generate code for main method
       stmts.foreach (x => cGenStat(x)(ch, Map.empty, "Main"))
       ch << RETURN
       ch.freeze
@@ -165,19 +167,25 @@ object CodeGeneration extends Pipeline[Program, Unit] {
           ch << InvokeVirtual("java/io/PrintStream", "println", "("+ typeToDescr(expr.getType) +")V")
         case Assign(id, expr) =>
           ch << LineNumber(expr.line)
-          cGenExpr(expr)
           mapping.get(id.getSymbol.name) match {
             case Some(slotNumber) => 
               // means that it is a local variable because appearing in the mapping
               typeToDescr(expr.getType) match {
-                case "I" => ch << IStore(slotNumber)
-                case "Z" => ch << IStore(slotNumber)
-                case _ => ch << AStore(slotNumber) 
+                case "I" => 
+                  cGenExpr(expr)
+                  ch << IStore(slotNumber)
+                case "Z" => 
+                  cGenExpr(expr)
+                  ch << IStore(slotNumber)
+                case _ => 
+                  cGenExpr(expr)
+                  ch << AStore(slotNumber) 
               }
             case None => 
               // means that it is a global variable
               ch << ALoad(0)
-              ch << PutField(cname, id.value, typeToDescr(id.getType))
+              cGenExpr(expr)
+              ch << PutField(cname, id.getSymbol.name, typeToDescr(expr.getType))
           }
         case ArrayAssign(id, index, expr) => // top: array, index, integer
           ch << LineNumber(expr.line)
@@ -187,7 +195,7 @@ object CodeGeneration extends Pipeline[Program, Unit] {
               ch << ALoad(slotNumber)
             case None => 
               ch << ALoad(0)
-              ch << GetField(cname, id.value, "[I")
+              ch << GetField(cname, id.getSymbol.name, "[I")
           }
           cGenExpr(index)
           cGenExpr(expr)
@@ -387,7 +395,7 @@ object CodeGeneration extends Pipeline[Program, Unit] {
               }
             case None => 
               ch << ALoad(0)
-              ch << GetField(cname, id.value, typeToDescr(id.getType))
+              ch << GetField(cname, id.getSymbol.name, typeToDescr(id.getType))
           }
         }
       }
